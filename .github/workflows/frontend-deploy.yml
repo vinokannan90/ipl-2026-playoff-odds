@@ -22,12 +22,18 @@ jobs:
           submodules: false
           lfs: false
 
-      - name: Inject backend URL into staticwebapp.config.json
+      - name: Inject backend URL into staticwebapp.config.json + dev-config.js
         run: |
-          BACKEND_HOST="${{ vars.BACKEND_URL }}"
-          BACKEND_HOST="${BACKEND_HOST#https://}"
+          BACKEND_URL="${{ vars.BACKEND_URL }}"
+          BACKEND_HOST="${BACKEND_URL#https://}"
           BACKEND_HOST="${BACKEND_HOST#http://}"
           sed -i "s|__BACKEND_URL__|${BACKEND_HOST}|g" frontend/staticwebapp.config.json
+          # Override the dev-only auto-wire so the deployed page hits the
+          # Container App via CORS (SWA Free doesn't support absolute rewrites).
+          cat > frontend/js/dev-config.js <<EOF
+          // Generated at deploy time by frontend-deploy.yml
+          window.__API_BASE__ = "${BACKEND_URL}";
+          EOF
 
       - uses: Azure/static-web-apps-deploy@v1
         with:
