@@ -34,6 +34,7 @@ param tags object = {
 var uniq = uniqueString(resourceGroup().id, namePrefix)
 var saName = toLower('${namePrefix}st${take(uniq, 6)}')
 var kvName = toLower('${namePrefix}-kv-${take(uniq, 6)}')
+var acrName = toLower('${namePrefix}acr${take(uniq, 6)}')
 var laName = '${namePrefix}-log'
 var aiName = '${namePrefix}-appi'
 var miName = '${namePrefix}-mi'
@@ -157,6 +158,30 @@ resource githubTokenSecret 'Microsoft.KeyVault/vaults/secrets@2024-04-01-preview
   properties: { value: 'set-me-via-cli', attributes: { enabled: true } }
 }
 
+// ---------------- Container Registry ----------------
+resource acr 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' = {
+  name: acrName
+  location: location
+  tags: tags
+  sku: { name: 'Basic' }
+  properties: {
+    adminUserEnabled: false
+    publicNetworkAccess: 'Enabled'
+    anonymousPullEnabled: false
+  }
+}
+
+// AcrPull → MI (so Container App can pull images)
+resource acrPullRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(acr.id, mi.id, 'acr-pull')
+  scope: acr
+  properties: {
+    principalId: mi.properties.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')
+  }
+}
+
 // ---------------- Container Apps Environment ----------------
 resource cae 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: caEnvName
@@ -181,7 +206,7 @@ resource cae 'Microsoft.App/managedEnvironments@2024-03-01' = {
 resource ca 'Microsoft.App/containerApps@2024-03-01' = {
   name: caName
   location: location
-  tags: tags
+  tags: union(tags, { 'azd-service-name': 'api' })
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: { '${mi.id}': {} }
@@ -191,6 +216,12 @@ resource ca 'Microsoft.App/containerApps@2024-03-01' = {
     workloadProfileName: 'Consumption'
     configuration: {
       activeRevisionsMode: 'Single'
+      registries: [
+        {
+          server: acr.properties.loginServer
+          identity: mi.id
+        }
+      ]
       ingress: {
         external: true
         targetPort: 8000
@@ -265,6 +296,12 @@ resource job 'Microsoft.App/jobs@2024-03-01' = {
       triggerType: 'Schedule'
       replicaTimeout: 600
       replicaRetryLimit: 1
+      registries: [
+        {
+          server: acr.properties.loginServer
+          identity: mi.id
+        }
+      ]
       scheduleTriggerConfig: {
         cronExpression: '0 4 * * *'  // 04:00 UTC = 09:30 IST
         parallelism: 1
@@ -305,12 +342,10 @@ resource swa 'Microsoft.Web/staticSites@2023-12-01' = {
   tags: tags
   sku: { name: 'Free', tier: 'Free' }
   properties: {
-    repositoryUrl: ''  // wired by GitHub Actions instead
-    branch: 'main'
-    buildProperties: {
-      appLocation: 'frontend'
-      outputLocation: ''
-    }
+    // No repository wiring here -- frontend is deployed via GitHub Actions
+    // using the SWA deployment token (see .github/workflows/frontend.yml).
+    allowConfigFileUpdates: true
+    stagingEnvironmentPolicy: 'Enabled'
   }
 }
 
@@ -324,3 +359,5 @@ output appInsightsConnectionString string = appi.properties.ConnectionString
 output staticWebAppName string = swa.name
 output containerAppName string = ca.name
 output containerEnvName string = cae.name
+output AZURE_CONTAINER_REGISTRY_ENDPOINT string = acr.properties.loginServer
+output AZURE_CONTAINER_REGISTRY_NAME string = acr.name

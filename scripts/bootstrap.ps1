@@ -85,6 +85,11 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
+# Pre-declare script-scoped vars so strict mode never fires on first read
+$script:AppId    = $null
+$script:TenantId = $null
+$script:GithubRepo = $null
+
 # ---------- Helpers ----------
 
 function Write-Step {
@@ -178,8 +183,18 @@ function Invoke-Preflight {
         Write-Ok "Detected repo: $script:GithubRepo"
     }
 
-    # Ensure resource group exists (created here so RBAC scope is valid)
-    $rg = az group show --name $ResourceGroup --output json 2>$null | ConvertFrom-Json
+    # Ensure resource group exists (created here so RBAC scope is valid).
+    # Wrap in try/catch + ignore non-zero exit, since az writes errors to
+    # stderr in a way Windows PowerShell 5.1 treats as terminating.
+    $rg = $null
+    try {
+        $rgJson = & az group show --name $ResourceGroup --output json 2>$null
+        if ($LASTEXITCODE -eq 0 -and $rgJson) {
+            $rg = $rgJson | ConvertFrom-Json
+        }
+    } catch {
+        $rg = $null
+    }
     if (-not $rg) {
         Write-Step "Creating resource group $ResourceGroup in $Location"
         Invoke-Az group create --name $ResourceGroup --location $Location | Out-Null
@@ -265,7 +280,7 @@ function Invoke-Oidc {
 
 function Invoke-Rbac {
     if (-not $script:AppId) {
-        $script:AppId = az ad app list --display-name $AppName --query '[0].appId' --output tsv
+        $script:AppId = (& az ad app list --display-name $AppName --query '[0].appId' --output tsv 2>$null)
         if (-not $script:AppId) { throw "App '$AppName' not found. Run -Phase oidc first." }
     }
 
@@ -359,11 +374,12 @@ function Invoke-GhVars {
     if (-not $script:TenantId) { $script:TenantId = az account show --query tenantId --output tsv }
 
     # Discover deployed resource names (best-effort; may be empty before azd up)
-    $caName  = az containerapp list --resource-group $ResourceGroup --query '[0].name' --output tsv 2>$null
-    $caEnv   = az containerapp env list --resource-group $ResourceGroup --query '[0].name' --output tsv 2>$null
+    $caName  = & az containerapp list --resource-group $ResourceGroup --query '[0].name' --output tsv 2>$null
+    $caEnv   = & az containerapp env list --resource-group $ResourceGroup --query '[0].name' --output tsv 2>$null
+    $acrLogin = & az acr list --resource-group $ResourceGroup --query '[0].loginServer' --output tsv 2>$null
     $backend = $null
     if ($caName) {
-        $fqdn = az containerapp show --name $caName --resource-group $ResourceGroup `
+        $fqdn = & az containerapp show --name $caName --resource-group $ResourceGroup `
             --query 'properties.configuration.ingress.fqdn' --output tsv 2>$null
         if ($fqdn) { $backend = "https://$fqdn" }
     }
@@ -376,9 +392,10 @@ function Invoke-GhVars {
         AZURE_LOCATION        = $Location
         AZURE_NAME_PREFIX     = $NamePrefix
     }
-    if ($caName)  { $vars['AZURE_CONTAINER_APP'] = $caName }
-    if ($caEnv)   { $vars['AZURE_CONTAINER_ENV'] = $caEnv }
-    if ($backend) { $vars['BACKEND_URL']         = $backend }
+    if ($caName)   { $vars['AZURE_CONTAINER_APP']      = $caName }
+    if ($caEnv)    { $vars['AZURE_CONTAINER_ENV']      = $caEnv }
+    if ($acrLogin) { $vars['AZURE_CONTAINER_REGISTRY'] = $acrLogin }
+    if ($backend)  { $vars['BACKEND_URL']              = $backend }
 
     foreach ($entry in $vars.GetEnumerator()) {
         if ([string]::IsNullOrWhiteSpace($entry.Value)) {
