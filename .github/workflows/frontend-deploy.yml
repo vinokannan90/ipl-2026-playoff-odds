@@ -24,7 +24,10 @@ jobs:
 
       - name: Inject backend URL into staticwebapp.config.json
         run: |
-          sed -i "s|__BACKEND_URL__|${{ vars.BACKEND_URL }}|g" frontend/staticwebapp.config.json
+          BACKEND_HOST="${{ vars.BACKEND_URL }}"
+          BACKEND_HOST="${BACKEND_HOST#https://}"
+          BACKEND_HOST="${BACKEND_HOST#http://}"
+          sed -i "s|__BACKEND_URL__|${BACKEND_HOST}|g" frontend/staticwebapp.config.json
 
       - uses: Azure/static-web-apps-deploy@v1
         with:
