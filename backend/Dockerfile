@@ -10,7 +10,7 @@ WORKDIR /build
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-COPY pyproject.toml ./
+COPY pyproject.toml README.md ./
 COPY src ./src
 RUN pip install --no-cache-dir .
 
