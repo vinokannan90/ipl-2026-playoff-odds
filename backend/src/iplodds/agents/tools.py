@@ -33,19 +33,46 @@ async def get_standings_tool() -> dict[str, Any]:
     }
 
 
+async def _team_id_to_code() -> dict[str, str]:
+    """Build a TeamID -> TeamCode map from the standings feed.
+
+    The schedule feed has empty HomeTeamCode/AwayTeamCode strings, so we have
+    to resolve codes via the standings (which do carry both ID and code).
+    """
+    standings = await iplt20_client.get_standings()
+    out: dict[str, str] = {}
+    for row in standings.get("points", []):
+        tid = str(row.get("TeamID") or "")
+        code = (row.get("TeamCode") or "").upper()
+        if tid and code:
+            out[tid] = code
+    return out
+
+
 async def get_remaining_fixtures_tool(team_code: str | None = None) -> dict[str, Any]:
     """Return remaining fixtures, optionally filtered by team code."""
     sched = await iplt20_client.get_schedule()
+    id_to_code = await _team_id_to_code()
+    wanted = team_code.upper() if team_code else None
     out = []
     for m in sched.get("Matchsummary", []):
         status = (m.get("MatchStatus") or "").lower()
         if status in {"post", "completed", "result"}:
             continue
-        home = m.get("HomeTeamCode")
-        away = m.get("AwayTeamCode")
-        if team_code and team_code.upper() not in {(home or "").upper(), (away or "").upper()}:
+        home_id = str(m.get("HomeTeamID") or "")
+        away_id = str(m.get("AwayTeamID") or "")
+        home = (m.get("HomeTeamCode") or "").upper() or id_to_code.get(home_id, "")
+        away = (m.get("AwayTeamCode") or "").upper() or id_to_code.get(away_id, "")
+        if wanted and wanted not in {home, away}:
             continue
-        out.append({"date": m.get("MatchDate"), "home": home, "away": away, "matchId": str(m.get("MatchID"))})
+        out.append({
+            "date": m.get("MatchDate"),
+            "home": home,
+            "away": away,
+            "homeName": m.get("HomeTeamName"),
+            "awayName": m.get("AwayTeamName"),
+            "matchId": str(m.get("MatchID")),
+        })
     return {"fixtures": out, "count": len(out)}
 
 
