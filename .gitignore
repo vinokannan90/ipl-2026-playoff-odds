@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Node
+node_modules/
+dist/
+.parcel-cache/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Azure
+.azure/
+*.azurePubxml
+
+# Secrets (defense in depth — secrets must never be committed)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+secrets/
+
+# Build artifacts
+*.log
+*.tgz

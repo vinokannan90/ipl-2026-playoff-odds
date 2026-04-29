@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json.schemastore.org/staticwebapp.config.json",
+  "routes": [
+    {
+      "route": "/api/*",
+      "rewrite": "https://__BACKEND_URL__/api/*",
+      "allowedRoles": ["anonymous"]
+    },
+    {
+      "route": "/*",
+      "headers": {
+        "cache-control": "public, max-age=300, stale-while-revalidate=86400"
+      }
+    }
+  ],
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": ["/api/*", "/assets/*", "/*.{css,js,png,jpg,svg,ico,webp}"]
+  },
+  "globalHeaders": {
+    "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), interest-cohort=()",
+    "Cross-Origin-Opener-Policy": "same-origin"
+  },
+  "mimeTypes": {
+    ".json": "application/json",
+    ".js": "application/javascript"
+  }
+}

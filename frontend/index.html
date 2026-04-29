@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="description" content="Live IPL 2026 playoff probability simulator with LLM-derived match priors and Monte Carlo simulation." />
+  <meta name="theme-color" content="#0b1220" />
+
+  <!-- Strict CSP. Inline styles allowed (small, audited). No inline scripts. -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self';
+                 img-src 'self' https://scores.iplt20.com https://www.iplt20.com data:;
+                 style-src 'self' 'unsafe-inline';
+                 script-src 'self';
+                 connect-src 'self' http://localhost:8000 http://127.0.0.1:8000 https://scores.iplt20.com https://*.azurecontainerapps.io;
+                 frame-ancestors 'none';
+                 base-uri 'self';
+                 form-action 'self';" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+
+  <title>IPL 2026 — Playoff Probability</title>
+
+  <!-- Open Graph for social sharing -->
+  <meta property="og:title" content="IPL 2026 Playoff Probability Simulator" />
+  <meta property="og:description" content="Live odds for every team to qualify, with LLM-powered match priors and a Q&A agent." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://ipl-prediction.in/" />
+
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="./js/dev-config.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#standingsCard">Skip to standings</a>
+  <header>
+    <div>
+      <h1>IPL 2026 — Playoff Probability Simulator</h1>
+      <p class="meta">Live data · Top 4 of 10 qualify · Monte Carlo over remaining fixtures</p>
+    </div>
+    <p class="meta" id="status" role="status" aria-live="polite">Loading…</p>
+  </header>
+
+  <main>
+    <section class="card" id="standingsCard" aria-labelledby="standingsHeading">
+      <h2 id="standingsHeading">Live Standings &amp; Playoff Odds</h2>
+      <div class="controls">
+        <label class="small" for="nSims">Simulations:
+          <input type="number" id="nSims" value="20000" min="1000" max="200000" step="1000" />
+        </label>
+        <label class="small">
+          <input type="checkbox" id="useLLMPriors" />
+          Use LLM-derived priors (when available)
+        </label>
+        <button class="primary" id="runBtn" type="button">Run simulation</button>
+        <button id="reloadBtn" type="button">Refresh data</button>
+      </div>
+      <div id="standingsTable" class="table-scroll"></div>
+      <p class="footnote">
+        Probabilities come from simulating every remaining match. By default each match is a 50/50 coin flip
+        (you can override via per-team bias, or enable LLM priors above). After each simulated season, the top 4 by
+        (Points → Wins → NRR → completed-and-simulated H2H) qualify. NRR is held at the current real value during
+        simulation — we don't invent run margins.
+      </p>
+    </section>
+
+    <section class="card" aria-labelledby="teamHeading">
+      <h2 id="teamHeading">Per-Team Deep Dive</h2>
+      <div class="controls">
+        <label class="small" for="teamSel">Team:
+          <select id="teamSel"></select>
+        </label>
+        <label class="small" for="teamWin">Per-match win prob (overrides 50/50):
+          <input type="number" id="teamWin" value="50" min="0" max="100" step="1" /> %
+        </label>
+        <button id="applyBias" type="button">Apply &amp; resimulate</button>
+      </div>
+      <div id="teamView" class="grid2"></div>
+      <details>
+        <summary>Remaining fixtures for this team</summary>
+        <div id="teamFixtures"></div>
+      </details>
+    </section>
+
+    <section class="card agent-card" aria-labelledby="agentHeading">
+      <h2 id="agentHeading">Ask the Agent</h2>
+      <p class="small">e.g. "What does RCB need to qualify?" · "Which 3 matches matter most for CSK?"</p>
+      <form id="agentForm" class="controls">
+        <input type="text" id="agentQ" placeholder="Ask about any team's chances…" maxlength="280" required />
+        <button type="submit" class="primary">Ask</button>
+      </form>
+      <div id="agentAnswer" class="agent-answer" aria-live="polite"></div>
+    </section>
+
+    <section class="card span-2" aria-labelledby="leverageHeading">
+      <h2 id="leverageHeading">Highest-Leverage Matches</h2>
+      <p class="small">Matches whose result swings playoff probabilities the most. Filter by team to see what matters most for that team specifically.</p>
+      <div class="controls">
+        <label class="small" for="leverageTeam">Focus team:
+          <select id="leverageTeam">
+            <option value="">League-wide</option>
+          </select>
+        </label>
+        <label class="small" for="leverageTopN">Show top:
+          <input type="number" id="leverageTopN" value="5" min="1" max="10" step="1" />
+        </label>
+        <button id="leverageBtn" type="button">Compute leverage</button>
+        <span class="small" id="leverageStatus"></span>
+      </div>
+      <div id="leverageTable" class="table-scroll"></div>
+    </section>
+
+    <section class="card span-2" aria-labelledby="howHeading">
+      <h2 id="howHeading">How this works</h2>
+      <ul class="footnote">
+        <li><strong>Format:</strong> 10 teams, 14 league matches each, 70 total. Win = 2 pts, No Result = 1 pt, Loss = 0.</li>
+        <li><strong>Playoffs:</strong> Top 4 qualify (Q1, Eliminator, Q2, Final).</li>
+        <li><strong>Tiebreakers:</strong> Wins → NRR → H2H wins (completed + in-sim) → random share.</li>
+        <li><strong>Data:</strong> Standings/schedule from <code>scores.iplt20.com</code> via our cached backend proxy. We never fabricate scores or NRR.</li>
+        <li><strong>Honesty:</strong> 50/50 default has zero predictive signal. LLM priors and your bias slider are the levers.</li>
+      </ul>
+      <p class="footnote" id="dataMeta"></p>
+    </section>
+  </main>
+
+  <footer>
+    <p class="footnote">
+      Open source · Built with FastAPI + Azure Container Apps + GitHub Models ·
+      <a href="https://github.com/" rel="noopener">Source</a>
+    </p>
+  </footer>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

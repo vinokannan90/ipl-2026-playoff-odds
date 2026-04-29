@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>IPL 2026 — Playoff Probability</title>
+<style>
+  :root {
+    --bg:#0b1220; --panel:#121a2e; --panel2:#182240; --ink:#e8ecf7; --mute:#8a93ad;
+    --accent:#3ad29f; --warn:#ffb454; --bad:#ff6b6b; --bar:#2a3554;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, Segoe UI, Roboto, sans-serif;
+    background: linear-gradient(180deg,#0a1020,#0b1220 30%); color: var(--ink); min-height:100vh; }
+  header { padding: 20px 24px; border-bottom: 1px solid #1e2a4a; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;}
+  header h1 { margin:0; font-size: 20px; letter-spacing:.3px; }
+  header .meta { color: var(--mute); font-size: 12px; }
+  main { max-width: 1200px; margin: 0 auto; padding: 20px; display:grid; gap: 20px; grid-template-columns: 1fr; }
+  @media(min-width: 980px){ main { grid-template-columns: 1.1fr 1fr; } }
+  .card { background: var(--panel); border:1px solid #1e2a4a; border-radius: 12px; padding: 16px; }
+  .card h2 { margin:0 0 12px; font-size: 15px; color: var(--ink); letter-spacing:.4px; text-transform:uppercase;}
+  .controls { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom: 12px; }
+  select, button, input[type=number] { background: var(--panel2); color: var(--ink); border:1px solid #2a3554; border-radius:8px; padding: 8px 10px; font-size: 13px; }
+  button { cursor:pointer; }
+  button.primary { background: var(--accent); color:#072019; border-color: var(--accent); font-weight:600; }
+  table { width:100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #1e2a4a; white-space: nowrap; }
+  th { color: var(--mute); font-weight:600; font-size: 11px; text-transform: uppercase; letter-spacing: .5px;}
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .bar { background: var(--bar); height: 8px; border-radius: 4px; overflow: hidden; }
+  .bar > span { display:block; height:100%; background: var(--accent); }
+  .pill { display:inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600;}
+  .pill.in { background: rgba(58,210,159,.18); color: var(--accent); }
+  .pill.out { background: rgba(255,107,107,.15); color: var(--bad); }
+  .pill.bub { background: rgba(255,180,84,.18); color: var(--warn); }
+  .small { font-size: 12px; color: var(--mute); }
+  .row { display:flex; align-items:center; gap:10px; }
+  .logo { width:22px; height:22px; object-fit: contain; }
+  details { background: var(--panel2); border:1px solid #2a3554; border-radius: 8px; padding: 8px 12px; margin-top: 8px; }
+  details summary { cursor:pointer; color: var(--mute); font-size: 12px; }
+  .err { color: var(--bad); }
+  .grid2 { display:grid; gap:12px; grid-template-columns: 1fr 1fr; }
+  .scenario { background: var(--panel2); border:1px solid #2a3554; border-radius:8px; padding: 10px 12px; }
+  .scenario .v { font-size: 22px; font-weight: 700; }
+  .footnote { color: var(--mute); font-size: 11px; line-height: 1.5; }
+  code { background: #0d1428; padding: 1px 5px; border-radius:4px; font-size: 12px; color:#cfd6ee; }
+  .matchrow { display:flex; align-items:center; justify-content: space-between; padding: 4px 0; border-bottom: 1px dashed #1e2a4a; font-size:12px;}
+  .matchrow:last-child { border:none; }
+  .matchrow .date { color: var(--mute); width: 90px; }
+  .matchrow .teams { flex:1; }
+  .matchrow .pred { width: 110px; text-align: right; color: var(--mute); }
+  .progress { width:200px; height: 4px; background: var(--bar); border-radius:2px; overflow:hidden; }
+  .progress > span { display:block; height:100%; background: var(--warn); }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>IPL 2026 — Playoff Probability Simulator</h1>
+    <div class="meta">Live data from <code>scores.iplt20.com</code> · Top 4 of 10 qualify · Monte Carlo over remaining fixtures</div>
+  </div>
+  <div class="meta" id="status">Loading…</div>
+</header>
+<main>
+  <section class="card" id="standingsCard">
+    <h2>Live Standings &amp; Playoff Odds</h2>
+    <div class="controls">
+      <label class="small">Simulations:
+        <input type="number" id="nSims" value="20000" min="1000" max="200000" step="1000" style="width:90px"/>
+      </label>
+      <label class="small">Default win prob (no team bias): <strong>50%</strong></label>
+      <button class="primary" id="runBtn">Run simulation</button>
+      <button id="reloadBtn">Refresh data</button>
+    </div>
+    <div id="progressWrap" class="progress" style="display:none;"><span style="width:0"></span></div>
+    <div id="standingsTable"></div>
+    <p class="footnote" style="margin-top:10px">
+      Probabilities are computed by simulating every remaining match. Each match is treated as a 50/50 coin flip
+      <em>unless you set a team bias below</em>. After each simulated full season, the top 4 by (Points → Wins → NRR) qualify.
+      NRR is held at the current real value during simulation — we do not invent run margins. If the simulator finds
+      a tie that would in reality be broken by a margin we cannot know, those teams share the qualifying slot equally.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>Per-Team Deep Dive</h2>
+    <div class="controls">
+      <label class="small">Team:
+        <select id="teamSel"></select>
+      </label>
+      <label class="small">Per-match win probability for this team (overrides 50/50):
+        <input type="number" id="teamWin" value="50" min="0" max="100" step="1" style="width:70px"/> %
+      </label>
+      <button id="applyBias">Apply &amp; resimulate</button>
+    </div>
+    <div id="teamView" class="grid2"></div>
+    <details>
+      <summary>Remaining fixtures for this team</summary>
+      <div id="teamFixtures"></div>
+    </details>
+  </section>
+
+  <section class="card" style="grid-column: 1 / -1;">
+    <h2>How this works · Rules encoded</h2>
+    <ul class="footnote">
+      <li><strong>Format:</strong> 10 teams, 14 league matches each, 70 league matches total. Win = 2 pts, No Result = 1 pt, Loss = 0.</li>
+      <li><strong>Playoffs:</strong> Top 4 on the league table qualify (Qualifier 1, Eliminator, Qualifier 2, Final).</li>
+      <li><strong>Tiebreakers:</strong> (1) more wins, (2) higher NRR, (3) head-to-head wins (from completed matches), (4) random share if still tied.</li>
+      <li><strong>Data sources (live, JSONP):</strong>
+        <code>284-groupstandings.js</code> for the table, <code>284-matchschedule.js</code> for fixtures (competition 284 = IPL 2026).
+        We never fabricate scores or NRR — only what the official feed reports.</li>
+      <li><strong>Honest limitations:</strong> 50/50 default contains zero predictive signal — it just maps the schedule to outcome distributions.
+        Use the per-team bias slider to inject your own prior.</li>
+    </ul>
+    <div id="dataMeta" class="footnote"></div>
+  </section>
+</main>
+
+<script>
+/* ---------- JSONP loader ---------- */
+function jsonp(url, callbackName) {
+  return new Promise((resolve, reject) => {
+    const original = window[callbackName];
+    let done = false;
+    window[callbackName] = function(data) {
+      done = true;
+      window[callbackName] = original;
+      resolve(data);
+    };
+    const s = document.createElement('script');
+    s.src = url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
+    s.onerror = () => { if (!done) reject(new Error('Failed to load ' + url)); };
+    document.head.appendChild(s);
+    setTimeout(() => { if (!done) reject(new Error('Timeout loading ' + url)); }, 20000);
+  });
+}
+
+const COMP_ID = 284; // IPL 2026
+const STANDINGS_URL = `https://scores.iplt20.com/ipl/feeds/stats/${COMP_ID}-groupstandings.js`;
+const SCHEDULE_URL  = `https://scores.iplt20.com/ipl/feeds/${COMP_ID}-matchschedule.js`;
+
+let STATE = {
+  standings: [],   // [{TeamCode, TeamName, TeamID, Matches, Wins, Loss, NoResult, Points, NetRunRate, TeamLogo, ...}]
+  schedule:  [],   // raw Matchsummary array
+  remaining: [],   // [{matchId, date, homeId, awayId, homeCode, awayCode}]
+  completedH2H: {},// {teamId: {opponentId: {wins:n, losses:n}}}
+  byId: {},        // teamId -> standings row
+  teamBias: {},    // teamId -> winProb (0..1) for matches involving this team (overrides 0.5)
+  lastResult: null,
+};
+
+function setStatus(msg, isErr) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = isErr ? 'meta err' : 'meta';
+}
+
+async function loadAll() {
+  setStatus('Fetching live data…');
+  try {
+    const [stand, sched] = await Promise.all([
+      jsonp(STANDINGS_URL, 'ongroupstandings'),
+      jsonp(SCHEDULE_URL, 'MatchSchedule'),
+    ]);
+    STATE.standings = (stand.points || []).map(r => ({
+      ...r,
+      _id: String(r.TeamID),
+      _matches: parseInt(r.Matches, 10) || 0,
+      _wins: parseInt(r.Wins, 10) || 0,
+      _loss: parseInt(r.Loss, 10) || 0,
+      _nr: parseInt(r.NoResult, 10) || 0,
+      _pts: parseInt(r.Points, 10) || 0,
+      _nrr: parseFloat(r.NetRunRate) || 0,
+    }));
+    STATE.byId = Object.fromEntries(STATE.standings.map(s => [s._id, s]));
+    STATE.schedule = sched.Matchsummary || [];
+
+    // Build completed H2H + remaining list
+    STATE.remaining = [];
+    STATE.completedH2H = {};
+    for (const m of STATE.schedule) {
+      const status = (m.MatchStatus || '').toLowerCase();
+      const homeId = String(m.HomeTeamID || m.FirstBattingTeamID || '');
+      const awayId = String(m.AwayTeamID || m.SecondBattingTeamID || '');
+      if (!homeId || !awayId) continue;
+      if (status === 'post' || status === 'completed' || status === 'result') {
+        const winnerId = String(m.MatchWinnerID || '');
+        if (winnerId && (winnerId === homeId || winnerId === awayId)) {
+          const loserId = winnerId === homeId ? awayId : homeId;
+          STATE.completedH2H[winnerId] = STATE.completedH2H[winnerId] || {};
+          STATE.completedH2H[winnerId][loserId] = (STATE.completedH2H[winnerId][loserId] || 0) + 1;
+        }
+      } else {
+        // upcoming
+        STATE.remaining.push({
+          matchId: m.MatchID,
+          date: m.MatchDateNew || m.MatchDate,
+          rawDate: m.MatchDate,
+          homeId, awayId,
+          homeCode: m.HomeTeamCode || (STATE.byId[homeId]?.TeamCode) || '?',
+          awayCode: m.AwayTeamCode || (STATE.byId[awayId]?.TeamCode) || '?',
+          name: m.MatchName,
+        });
+      }
+    }
+    // Sort remaining by date
+    STATE.remaining.sort((a,b) => (a.rawDate||'').localeCompare(b.rawDate||''));
+
+    setStatus(`Loaded ${STATE.standings.length} teams · ${STATE.remaining.length} matches remaining`);
+    populateTeamSelect();
+    document.getElementById('dataMeta').innerHTML =
+      `Standings rows: ${STATE.standings.length}. Schedule entries: ${STATE.schedule.length}. ` +
+      `Remaining matches: ${STATE.remaining.length}. Last refreshed: ${new Date().toLocaleString()}.`;
+    runSimulation();
+  } catch (e) {
+    setStatus('Failed to load live data: ' + e.message, true);
+    console.error(e);
+  }
+}
+
+function populateTeamSelect() {
+  const sel = document.getElementById('teamSel');
+  sel.innerHTML = '';
+  STATE.standings
+    .slice()
+    .sort((a,b) => a.TeamName.localeCompare(b.TeamName))
+    .forEach(t => {
+      const o = document.createElement('option');
+      o.value = t._id; o.textContent = `${t.TeamName} (${t.TeamCode})`;
+      sel.appendChild(o);
+    });
+}
+
+/* ---------- Simulation ---------- */
+function simulate(nSims) {
+  const teams = STATE.standings;
+  const ids = teams.map(t => t._id);
+  const idx = Object.fromEntries(ids.map((id,i) => [id,i]));
+  const baseW = teams.map(t => t._wins);
+  const baseL = teams.map(t => t._loss);
+  const baseNR = teams.map(t => t._nr);
+  const basePts = teams.map(t => t._pts);
+  const baseNrr = teams.map(t => t._nrr);
+
+  const rem = STATE.remaining.filter(m => idx[m.homeId] !== undefined && idx[m.awayId] !== undefined);
+  const playoffCount = new Array(ids.length).fill(0);
+  const top2Count    = new Array(ids.length).fill(0);
+  const finishPos    = ids.map(() => new Array(ids.length).fill(0)); // [team][position-1]
+
+  // Pre-compute completed H2H wins as flat lookup
+  const h2h = STATE.completedH2H;
+
+  for (let s = 0; s < nSims; s++) {
+    const w = baseW.slice();
+    const l = baseL.slice();
+    const pts = basePts.slice();
+    // simulate each remaining match
+    for (let mi = 0; mi < rem.length; mi++) {
+      const m = rem[mi];
+      const hi = idx[m.homeId], ai = idx[m.awayId];
+      // Determine win prob for home team
+      let pHome = 0.5;
+      const bH = STATE.teamBias[m.homeId];
+      const bA = STATE.teamBias[m.awayId];
+      if (bH !== undefined && bA !== undefined) {
+        // both biased: average their views (home's win prob, and 1 - away's win prob)
+        pHome = (bH + (1 - bA)) / 2;
+      } else if (bH !== undefined) {
+        pHome = bH;
+      } else if (bA !== undefined) {
+        pHome = 1 - bA;
+      }
+      if (Math.random() < pHome) { w[hi]++; pts[hi] += 2; l[ai]++; }
+      else                       { w[ai]++; pts[ai] += 2; l[hi]++; }
+    }
+    // Build ranking
+    const order = ids.map((id,i) => i).sort((a,b) => {
+      if (pts[b] !== pts[a]) return pts[b] - pts[a];
+      if (w[b]   !== w[a])   return w[b]   - w[a];
+      if (baseNrr[b] !== baseNrr[a]) return baseNrr[b] - baseNrr[a];
+      // head-to-head wins from completed matches only (honest fallback)
+      const ha = (h2h[ids[a]] && h2h[ids[a]][ids[b]]) || 0;
+      const hb = (h2h[ids[b]] && h2h[ids[b]][ids[a]]) || 0;
+      if (hb !== ha) return hb - ha;
+      return Math.random() - 0.5; // unresolvable tie -> random share
+    });
+    for (let pos = 0; pos < order.length; pos++) {
+      const ti = order[pos];
+      finishPos[ti][pos]++;
+      if (pos < 4) playoffCount[ti]++;
+      if (pos < 2) top2Count[ti]++;
+    }
+  }
+
+  return {
+    nSims,
+    rows: ids.map((id, i) => ({
+      teamId: id,
+      team: teams[i],
+      playoffProb: playoffCount[i] / nSims,
+      top2Prob:    top2Count[i]    / nSims,
+      finishDist:  finishPos[i].map(c => c / nSims),
+      expectedWins: baseW[i] + (rem.filter(m => m.homeId===id || m.awayId===id).length * (
+        // expected additional wins for this team given the bias model
+        (() => {
+          let ew = 0;
+          for (const m of rem) {
+            if (m.homeId !== id && m.awayId !== id) continue;
+            const isHome = m.homeId === id;
+            let pHome = 0.5;
+            const bH = STATE.teamBias[m.homeId], bA = STATE.teamBias[m.awayId];
+            if (bH!==undefined && bA!==undefined) pHome = (bH + (1-bA))/2;
+            else if (bH!==undefined) pHome = bH;
+            else if (bA!==undefined) pHome = 1-bA;
+            ew += isHome ? pHome : (1 - pHome);
+          }
+          // we'll compute & pass through divisor of 1 — return absolute additional expected wins
+          return ew;
+        })() / Math.max(1, rem.filter(m => m.homeId===id || m.awayId===id).length)
+      )),
+    })),
+  };
+}
+
+/* ---------- Rendering ---------- */
+function renderStandings(result) {
+  const rows = result.rows.slice().sort((a,b) => b.playoffProb - a.playoffProb);
+  let html = `<table><thead><tr>
+    <th>Team</th>
+    <th class="num">P</th><th class="num">W</th><th class="num">L</th><th class="num">NR</th>
+    <th class="num">Pts</th><th class="num">NRR</th>
+    <th>Playoff Probability</th>
+    <th class="num">Top 2</th>
+    <th></th>
+  </tr></thead><tbody>`;
+  for (const r of rows) {
+    const t = r.team;
+    const pct = (r.playoffProb*100).toFixed(1);
+    const top2 = (r.top2Prob*100).toFixed(1);
+    let pillCls = 'bub', pillTxt = 'Bubble';
+    if (r.playoffProb >= 0.99) { pillCls = 'in'; pillTxt = 'Qualified*'; }
+    else if (r.playoffProb <= 0.01) { pillCls = 'out'; pillTxt = 'Eliminated*'; }
+    html += `<tr>
+      <td><div class="row"><img class="logo" src="${t.TeamLogo}" alt=""/><div><strong>${t.TeamCode}</strong> <span class="small">${t.TeamName}</span></div></div></td>
+      <td class="num">${t._matches}</td>
+      <td class="num">${t._wins}</td>
+      <td class="num">${t._loss}</td>
+      <td class="num">${t._nr}</td>
+      <td class="num"><strong>${t._pts}</strong></td>
+      <td class="num">${t._nrr.toFixed(3)}</td>
+      <td>
+        <div class="bar"><span style="width:${pct}%"></span></div>
+        <div class="small" style="margin-top:2px">${pct}%</div>
+      </td>
+      <td class="num">${top2}%</td>
+      <td><span class="pill ${pillCls}">${pillTxt}</span></td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  html += `<p class="footnote" style="margin-top:8px">* "Qualified/Eliminated" reflects ≥99% / ≤1% across ${result.nSims.toLocaleString()} simulations under the current bias settings, not a mathematical guarantee. Hit "Run simulation" again after changing biases.</p>`;
+  document.getElementById('standingsTable').innerHTML = html;
+}
+
+function renderTeamView(result) {
+  const id = document.getElementById('teamSel').value;
+  const row = result.rows.find(r => r.teamId === id);
+  if (!row) return;
+  const t = row.team;
+  const teamRem = STATE.remaining.filter(m => m.homeId === id || m.awayId === id);
+  const matchesLeft = teamRem.length;
+  const maxPts = t._pts + matchesLeft * 2;
+
+  // Find pts threshold by inspecting finish dist + simulated outcomes? We'll show distribution of final points instead.
+  // Run a quick auxiliary loop for this team's final points distribution
+  const N = 5000;
+  const pointsDist = new Array(maxPts + 1).fill(0);
+  const winsDist   = new Array(t._wins + matchesLeft + 1).fill(0);
+  for (let s=0; s<N; s++) {
+    let pts = t._pts, w = t._wins;
+    for (const m of teamRem) {
+      const isHome = m.homeId === id;
+      let pHome = 0.5;
+      const bH = STATE.teamBias[m.homeId], bA = STATE.teamBias[m.awayId];
+      if (bH!==undefined && bA!==undefined) pHome = (bH + (1-bA))/2;
+      else if (bH!==undefined) pHome = bH;
+      else if (bA!==undefined) pHome = 1-bA;
+      const pTeam = isHome ? pHome : 1 - pHome;
+      if (Math.random() < pTeam) { pts += 2; w += 1; }
+    }
+    pointsDist[pts]++;
+    winsDist[w]++;
+  }
+  const expW = winsDist.reduce((acc,c,i) => acc + i*c, 0) / N;
+  const expP = pointsDist.reduce((acc,c,i) => acc + i*c, 0) / N;
+
+  // Find smallest "safe" points threshold: estimate from simulated finishPos data
+  // Approximate: probability of qualifying given W wins -> derive needed wins
+  // Simple heuristic: show common cutoff (typical IPL ~16 pts)
+  let html = '';
+  html += `<div class="scenario"><div class="small">Playoff probability</div><div class="v">${(row.playoffProb*100).toFixed(1)}%</div></div>`;
+  html += `<div class="scenario"><div class="small">Top-2 probability</div><div class="v">${(row.top2Prob*100).toFixed(1)}%</div></div>`;
+  html += `<div class="scenario"><div class="small">Expected final wins</div><div class="v">${expW.toFixed(2)}</div><div class="small">from ${t._wins} now + ${matchesLeft} left</div></div>`;
+  html += `<div class="scenario"><div class="small">Expected final points</div><div class="v">${expP.toFixed(2)}</div><div class="small">max possible: ${maxPts}</div></div>`;
+
+  // Finish position distribution
+  html += `<div class="scenario" style="grid-column:1/-1"><div class="small" style="margin-bottom:6px">Finish position distribution</div>`;
+  for (let pos = 0; pos < row.finishDist.length; pos++) {
+    const p = row.finishDist[pos];
+    const w = (p*100).toFixed(1);
+    const cls = pos < 4 ? 'in' : 'out';
+    html += `<div style="display:flex; align-items:center; gap:8px; margin: 2px 0">
+      <span class="pill ${cls}" style="width:42px; text-align:center">${pos+1}</span>
+      <div class="bar" style="flex:1"><span style="width:${w}%"></span></div>
+      <span class="small" style="width:48px; text-align:right">${w}%</span>
+    </div>`;
+  }
+  html += `</div>`;
+  document.getElementById('teamView').innerHTML = html;
+
+  // Fixtures
+  let f = '';
+  for (const m of teamRem) {
+    const isHome = m.homeId === id;
+    const opp = isHome ? m.awayCode : m.homeCode;
+    let pHome = 0.5;
+    const bH = STATE.teamBias[m.homeId], bA = STATE.teamBias[m.awayId];
+    if (bH!==undefined && bA!==undefined) pHome = (bH + (1-bA))/2;
+    else if (bH!==undefined) pHome = bH;
+    else if (bA!==undefined) pHome = 1-bA;
+    const pTeam = isHome ? pHome : 1 - pHome;
+    f += `<div class="matchrow">
+      <div class="date">${m.date}</div>
+      <div class="teams">${isHome?'vs':'@'} ${opp}</div>
+      <div class="pred">P(win) = ${(pTeam*100).toFixed(0)}%</div>
+    </div>`;
+  }
+  if (!teamRem.length) f = '<div class="small">No remaining matches.</div>';
+  document.getElementById('teamFixtures').innerHTML = f;
+}
+
+/* ---------- Wiring ---------- */
+function runSimulation() {
+  const n = Math.max(1000, Math.min(200000, parseInt(document.getElementById('nSims').value, 10) || 20000));
+  setStatus(`Running ${n.toLocaleString()} simulations…`);
+  // yield to UI
+  setTimeout(() => {
+    const t0 = performance.now();
+    STATE.lastResult = simulate(n);
+    const ms = (performance.now() - t0).toFixed(0);
+    setStatus(`Simulated ${n.toLocaleString()} seasons in ${ms} ms · ${STATE.remaining.length} matches remaining`);
+    renderStandings(STATE.lastResult);
+    renderTeamView(STATE.lastResult);
+  }, 20);
+}
+
+document.getElementById('runBtn').addEventListener('click', runSimulation);
+document.getElementById('reloadBtn').addEventListener('click', loadAll);
+document.getElementById('teamSel').addEventListener('change', () => {
+  // reflect existing bias for selected team in input
+  const id = document.getElementById('teamSel').value;
+  const b = STATE.teamBias[id];
+  document.getElementById('teamWin').value = b !== undefined ? Math.round(b*100) : 50;
+  if (STATE.lastResult) renderTeamView(STATE.lastResult);
+});
+document.getElementById('applyBias').addEventListener('click', () => {
+  const id = document.getElementById('teamSel').value;
+  const v = Math.max(0, Math.min(100, parseFloat(document.getElementById('teamWin').value))) / 100;
+  if (Math.abs(v - 0.5) < 1e-9) delete STATE.teamBias[id];
+  else STATE.teamBias[id] = v;
+  runSimulation();
+});
+
+loadAll();
+</script>
+</body>
+</html>

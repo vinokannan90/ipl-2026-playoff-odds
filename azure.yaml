@@ -1,0 +1,32 @@
+# azd configuration. Run `azd up` after `az login`.
+name: iplodds
+metadata:
+  template: iplodds@0.1.0
+
+services:
+  api:
+    project: ./backend
+    language: python
+    host: containerapp
+    docker:
+      path: ./Dockerfile
+      context: .
+
+infra:
+  provider: bicep
+  path: infra
+  module: main
+
+hooks:
+  postprovision:
+    windows:
+      shell: pwsh
+      run: |
+        Write-Host "✅ Provisioned. Next steps:"
+        Write-Host "  1. Set the GitHub Models token: az keyvault secret set --vault-name <kvName> --name github-models-token --value <token>"
+        Write-Host "  2. Deploy frontend: see .github/workflows/frontend.yml"
+        Write-Host "  3. Optional custom domain: az staticwebapp hostname set ..."
+    posix:
+      shell: sh
+      run: |
+        echo "✅ Provisioned. Set the GitHub Models token in Key Vault, then deploy the frontend."
