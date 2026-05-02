@@ -129,23 +129,57 @@ Add this **secret** (one-time, from SWA portal → Manage deployment token):
 |---|---|
 | `AZURE_STATIC_WEB_APPS_API_TOKEN` | SWA → Overview → Manage deployment token |
 
-### 6. Custom domain `ipl-prediction.in`
+### 6. Custom domain `playoffodds.ai`
 
-`.in` requires KYC. Register at any registrar (e.g. BigRock, Namecheap, Hostinger).
+Register the domain at any registrar (this project uses **Cloudflare Registrar**,
+which gives you free DNS + CNAME-flattening on the apex out of the box).
 
-After registration, add to your registrar:
+#### a. DNS records (Cloudflare → DNS → Records)
 
-| Type | Host | Value |
-|---|---|---|
-| `CNAME` | `www` | `<swa-name>.azurestaticapps.net` |
-| `ALIAS`/`ANAME` | `@` | `<swa-name>.azurestaticapps.net` |
+| Type | Name | Content | Proxy |
+|---|---|---|---|
+| `CNAME` | `@` | `<swa-name>.azurestaticapps.net` | DNS only (grey cloud) |
+| `CNAME` | `www` | `<swa-name>.azurestaticapps.net` | DNS only (grey cloud) |
 
-Then bind:
+Cloudflare auto-flattens the apex `CNAME` to an A record at query time, so
+public resolvers see an A for `playoffodds.ai` and a real CNAME for `www`.
+
+#### b. Bind the sub-domain (CNAME validation, default)
 
 ```pwsh
-az staticwebapp hostname set -n <swa-name> -g rg-iplodds-prod --hostname ipl-prediction.in
-az staticwebapp hostname set -n <swa-name> -g rg-iplodds-prod --hostname www.ipl-prediction.in
+az staticwebapp hostname set -n <swa-name> -g rg-iplodds-prod `
+  --hostname www.playoffodds.ai --no-wait
 ```
+
+#### c. Bind the apex (TXT-token validation, required)
+
+Azure SWA refuses CNAME validation on apex domains, so the root must use a
+TXT token:
+
+```pwsh
+# 1. Request the binding (generates a token after a few seconds)
+az staticwebapp hostname set -n <swa-name> -g rg-iplodds-prod `
+  --hostname playoffodds.ai --validation-method dns-txt-token
+
+# 2. Read the token
+az staticwebapp hostname show -n <swa-name> -g rg-iplodds-prod `
+  --hostname playoffodds.ai --query "validationToken" -o tsv
+```
+
+Add the token as a TXT record in Cloudflare:
+
+| Type | Name | Content | TTL |
+|---|---|---|---|
+| `TXT` | `@` | `<validationToken from step 2>` | Auto |
+
+Azure polls public DNS and flips the hostname to `Ready` within a few minutes;
+re-check with:
+
+```pwsh
+az staticwebapp hostname list -n <swa-name> -g rg-iplodds-prod -o table
+```
+
+TLS certs are issued automatically once both hostnames are `Ready`.
 
 ---
 
@@ -217,7 +251,7 @@ ruff check .
 | Container Apps Job (1 run/day, ~30s) | <$0.05 | <$0.05 | <$0.05 |
 | **Total** | **<$3/mo** | **<$5/mo** | **~$25-40/mo** |
 
-To stay free in early days: keep the Log Analytics daily cap at 1 GB (already set), keep min replicas at 0 (already set), and don't enable scout until you have a paid news source.
+To stay free in early days: keep the Log Analytics daily cap at 1 GB (already set), set min replicas to 0 (currently 1 for warm starts — flip to 0 to save ~$5-8/mo at the cost of ~3-5 s cold-start latency on the first request after idle), and don't enable scout until you have a paid news source.
 
 ---
 
