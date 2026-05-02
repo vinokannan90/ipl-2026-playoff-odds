@@ -58,6 +58,7 @@ async def _fetch(url: str) -> Any:
         r = await client.get(url)
         r.raise_for_status()
         import orjson
+
         return orjson.loads(_strip_jsonp(r.text))
 
 

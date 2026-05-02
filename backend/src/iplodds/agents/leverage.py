@@ -36,9 +36,7 @@ async def compute_leverage(
 
     teams = teams_from_raw(standings_raw.get("points", []))
     by_id = {t.id: t for t in teams}
-    remaining, completed_h2h = remaining_from_raw(
-        schedule_raw.get("Matchsummary", []), by_id
-    )
+    remaining, completed_h2h = remaining_from_raw(schedule_raw.get("Matchsummary", []), by_id)
 
     priors = None
     if use_priors and s.feature_priors:
@@ -59,9 +57,7 @@ async def compute_leverage(
     matches = result["leverage"]
     if team_code:
         tc = team_code.upper()
-        matches = sorted(
-            matches, key=lambda m: m["perTeam"].get(tc, 0.0), reverse=True
-        )
+        matches = sorted(matches, key=lambda m: m["perTeam"].get(tc, 0.0), reverse=True)
     else:
         matches = sorted(matches, key=lambda m: m["totalLeverage"], reverse=True)
 

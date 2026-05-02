@@ -48,20 +48,24 @@ class Match:
 def teams_from_raw(raw_points: list[dict[str, Any]]) -> list[Team]:
     out: list[Team] = []
     for r in raw_points:
-        out.append(Team(
-            id=str(r.get("TeamID")),
-            code=str(r.get("TeamCode") or ""),
-            name=str(r.get("TeamName") or ""),
-            pts=int(r.get("Points") or 0),
-            wins=int(r.get("Wins") or 0),
-            loss=int(r.get("Loss") or 0),
-            nr=int(r.get("NoResult") or 0),
-            nrr=float(r.get("NetRunRate") or 0.0),
-        ))
+        out.append(
+            Team(
+                id=str(r.get("TeamID")),
+                code=str(r.get("TeamCode") or ""),
+                name=str(r.get("TeamName") or ""),
+                pts=int(r.get("Points") or 0),
+                wins=int(r.get("Wins") or 0),
+                loss=int(r.get("Loss") or 0),
+                nr=int(r.get("NoResult") or 0),
+                nrr=float(r.get("NetRunRate") or 0.0),
+            )
+        )
     return out
 
 
-def remaining_from_raw(raw_schedule: list[dict[str, Any]], by_id: dict[str, Team]) -> tuple[list[Match], dict[str, dict[str, int]]]:
+def remaining_from_raw(
+    raw_schedule: list[dict[str, Any]], by_id: dict[str, Team]
+) -> tuple[list[Match], dict[str, dict[str, int]]]:
     """Return (remaining_matches, completed_h2h)."""
     remaining: list[Match] = []
     h2h: dict[str, dict[str, int]] = {}
@@ -77,14 +81,20 @@ def remaining_from_raw(raw_schedule: list[dict[str, Any]], by_id: dict[str, Team
                 loser = away if winner == home else home
                 h2h.setdefault(winner, {})[loser] = h2h.get(winner, {}).get(loser, 0) + 1
             continue
-        remaining.append(Match(
-            match_id=str(m.get("MatchID") or ""),
-            home_id=home,
-            away_id=away,
-            home_code=str(m.get("HomeTeamCode") or by_id.get(home, Team("", "?", "", 0, 0, 0, 0, 0)).code),
-            away_code=str(m.get("AwayTeamCode") or by_id.get(away, Team("", "?", "", 0, 0, 0, 0, 0)).code),
-            date=str(m.get("MatchDate") or ""),
-        ))
+        remaining.append(
+            Match(
+                match_id=str(m.get("MatchID") or ""),
+                home_id=home,
+                away_id=away,
+                home_code=str(
+                    m.get("HomeTeamCode") or by_id.get(home, Team("", "?", "", 0, 0, 0, 0, 0)).code
+                ),
+                away_code=str(
+                    m.get("AwayTeamCode") or by_id.get(away, Team("", "?", "", 0, 0, 0, 0, 0)).code
+                ),
+                date=str(m.get("MatchDate") or ""),
+            )
+        )
     return remaining, h2h
 
 
@@ -167,29 +177,36 @@ def simulate_with_leverage(
             hi = home_i[mi]
             ai = away_i[mi]
             if r < nr_rate:
-                nr_arr[hi] += 1; nr_arr[ai] += 1
-                pts[hi] += 1; pts[ai] += 1
+                nr_arr[hi] += 1
+                nr_arr[ai] += 1
+                pts[hi] += 1
+                pts[ai] += 1
                 nr_in_sim[mi] = 1
                 continue
             # Re-scale r into [0,1) and compare to pHome
             r2 = (r - nr_rate) / (1 - nr_rate)
             if r2 < p_home[mi]:
-                w[hi] += 1; pts[hi] += 2; l[ai] += 1
+                w[hi] += 1
+                pts[hi] += 2
+                l[ai] += 1
                 home_won_flags[mi] = 1
                 m = rem[mi]
-                sim_h2h.setdefault(m.home_id, {})[m.away_id] = sim_h2h.get(m.home_id, {}).get(m.away_id, 0) + 1
+                sim_h2h.setdefault(m.home_id, {})[m.away_id] = (
+                    sim_h2h.get(m.home_id, {}).get(m.away_id, 0) + 1
+                )
             else:
-                w[ai] += 1; pts[ai] += 2; l[hi] += 1
+                w[ai] += 1
+                pts[ai] += 2
+                l[hi] += 1
                 home_won_flags[mi] = 0
                 m = rem[mi]
-                sim_h2h.setdefault(m.away_id, {})[m.home_id] = sim_h2h.get(m.away_id, {}).get(m.home_id, 0) + 1
+                sim_h2h.setdefault(m.away_id, {})[m.home_id] = (
+                    sim_h2h.get(m.away_id, {}).get(m.home_id, 0) + 1
+                )
 
         # Rank with combined H2H
         def h2h_wins(a: str, b: str) -> int:
-            return (
-                completed_h2h.get(a, {}).get(b, 0)
-                + sim_h2h.get(a, {}).get(b, 0)
-            )
+            return completed_h2h.get(a, {}).get(b, 0) + sim_h2h.get(a, {}).get(b, 0)
 
         order = sorted(
             range(n_teams),
@@ -255,18 +272,20 @@ def simulate_with_leverage(
                 swing = abs(p_h - p_a)
                 per_team[teams[ti].code] = round(swing, 4)
                 total += swing
-        leverage.append({
-            "matchId": m.match_id,
-            "date": m.date,
-            "home": m.home_code,
-            "away": m.away_code,
-            "pHome": round(p_home[mi], 3),
-            "samplesHomeWin": nh,
-            "samplesAwayWin": na,
-            "confident": confident,
-            "totalLeverage": round(total, 4),
-            "perTeam": per_team,
-        })
+        leverage.append(
+            {
+                "matchId": m.match_id,
+                "date": m.date,
+                "home": m.home_code,
+                "away": m.away_code,
+                "pHome": round(p_home[mi], 3),
+                "samplesHomeWin": nh,
+                "samplesAwayWin": na,
+                "confident": confident,
+                "totalLeverage": round(total, 4),
+                "perTeam": per_team,
+            }
+        )
 
     return {
         "nSims": n_sims,

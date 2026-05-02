@@ -66,18 +66,20 @@ async def ask(question: str) -> dict[str, Any]:
             return {"text": (msg.content or "").strip(), "citations": citations}
 
         # Append assistant message preserving tool_calls
-        messages.append({
-            "role": "assistant",
-            "content": msg.content or "",
-            "tool_calls": [
-                {
-                    "id": tc.id,
-                    "type": "function",
-                    "function": {"name": tc.function.name, "arguments": tc.function.arguments},
-                }
-                for tc in tool_calls
-            ],
-        })
+        messages.append(
+            {
+                "role": "assistant",
+                "content": msg.content or "",
+                "tool_calls": [
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {"name": tc.function.name, "arguments": tc.function.arguments},
+                    }
+                    for tc in tool_calls
+                ],
+            }
+        )
 
         for tc in tool_calls:
             name = tc.function.name
@@ -96,11 +98,13 @@ async def ask(question: str) -> dict[str, Any]:
                 except Exception as e:
                     log.exception("agent.tool_failed", tool=name)
                     tool_result = {"error": f"tool {name} failed: {type(e).__name__}"}
-            messages.append({
-                "role": "tool",
-                "tool_call_id": tc.id,
-                "content": orjson.dumps(tool_result).decode(),
-            })
+            messages.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": tc.id,
+                    "content": orjson.dumps(tool_result).decode(),
+                }
+            )
 
     return {
         "text": "Reached the tool-call limit without producing a final answer.",

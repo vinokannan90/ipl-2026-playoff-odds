@@ -65,14 +65,16 @@ async def get_remaining_fixtures_tool(team_code: str | None = None) -> dict[str,
         away = (m.get("AwayTeamCode") or "").upper() or id_to_code.get(away_id, "")
         if wanted and wanted not in {home, away}:
             continue
-        out.append({
-            "date": m.get("MatchDate"),
-            "home": home,
-            "away": away,
-            "homeName": m.get("HomeTeamName"),
-            "awayName": m.get("AwayTeamName"),
-            "matchId": str(m.get("MatchID")),
-        })
+        out.append(
+            {
+                "date": m.get("MatchDate"),
+                "home": home,
+                "away": away,
+                "homeName": m.get("HomeTeamName"),
+                "awayName": m.get("AwayTeamName"),
+                "matchId": str(m.get("MatchID")),
+            }
+        )
     return {"fixtures": out, "count": len(out)}
 
 
@@ -114,13 +116,11 @@ async def get_live_match_tool() -> dict[str, Any]:
         bat2_id = str(m.get("SecondBattingTeamID") or "")
         home = (m.get("HomeTeamCode") or "").upper() or id_to_code.get(home_id, home_id)
         away = (m.get("AwayTeamCode") or "").upper() or id_to_code.get(away_id, away_id)
-        bat1_code = (
-            (m.get("FirstBattingTeamCode") or "").upper()
-            or id_to_code.get(bat1_id, bat1_id)
+        bat1_code = (m.get("FirstBattingTeamCode") or "").upper() or id_to_code.get(
+            bat1_id, bat1_id
         )
-        bat2_code = (
-            (m.get("SecondBattingTeamCode") or "").upper()
-            or id_to_code.get(bat2_id, bat2_id)
+        bat2_code = (m.get("SecondBattingTeamCode") or "").upper() or id_to_code.get(
+            bat2_id, bat2_id
         )
 
         return {
@@ -169,8 +169,7 @@ async def get_live_match_tool() -> dict[str, Any]:
     return {
         "live": False,
         "message": (
-            "No IPL match is currently in progress. "
-            "Check the schedule for upcoming fixtures."
+            "No IPL match is currently in progress. Check the schedule for upcoming fixtures."
         ),
     }
 
@@ -190,8 +189,7 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         "function": {
             "name": "get_remaining_fixtures",
             "description": (
-                "Return remaining IPL 2026 fixtures, optionally filtered"
-                " by team code (e.g. 'RCB')."
+                "Return remaining IPL 2026 fixtures, optionally filtered by team code (e.g. 'RCB')."
             ),
             "parameters": {
                 "type": "object",

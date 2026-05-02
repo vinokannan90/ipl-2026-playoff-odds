@@ -41,16 +41,18 @@ def _build_user_payload(standings_raw: dict, schedule_raw: dict) -> dict[str, An
     teams = []
     by_id = {}
     for t in standings_raw.get("points", []):
-        teams.append({
-            "id": str(t.get("TeamID")),
-            "code": t.get("TeamCode"),
-            "name": t.get("TeamName"),
-            "pts": int(t.get("Points") or 0),
-            "w": int(t.get("Wins") or 0),
-            "l": int(t.get("Loss") or 0),
-            "nr": int(t.get("NoResult") or 0),
-            "nrr": float(t.get("NetRunRate") or 0),
-        })
+        teams.append(
+            {
+                "id": str(t.get("TeamID")),
+                "code": t.get("TeamCode"),
+                "name": t.get("TeamName"),
+                "pts": int(t.get("Points") or 0),
+                "w": int(t.get("Wins") or 0),
+                "l": int(t.get("Loss") or 0),
+                "nr": int(t.get("NoResult") or 0),
+                "nrr": float(t.get("NetRunRate") or 0),
+            }
+        )
         by_id[str(t.get("TeamID"))] = t.get("TeamCode")
 
     remaining = []
@@ -62,14 +64,16 @@ def _build_user_payload(standings_raw: dict, schedule_raw: dict) -> dict[str, An
         away = str(m.get("AwayTeamID") or "")
         if not home or not away:
             continue
-        remaining.append({
-            "matchId": str(m.get("MatchID")),
-            "date": m.get("MatchDate"),
-            "home": by_id.get(home, home),
-            "away": by_id.get(away, away),
-            "homeId": home,
-            "awayId": away,
-        })
+        remaining.append(
+            {
+                "matchId": str(m.get("MatchID")),
+                "date": m.get("MatchDate"),
+                "home": by_id.get(home, home),
+                "away": by_id.get(away, away),
+                "homeId": home,
+                "awayId": away,
+            }
+        )
 
     return {"teams": teams, "remaining": remaining}
 

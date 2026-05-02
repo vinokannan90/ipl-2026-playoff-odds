@@ -27,7 +27,9 @@ SECURITY_HEADERS = {
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         response = await call_next(request)
         for k, v in SECURITY_HEADERS.items():
             response.headers.setdefault(k, v)
@@ -39,19 +41,26 @@ class BodySizeLimitMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.max_bytes = max_bytes
 
-    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         cl = request.headers.get("content-length")
         if cl and cl.isdigit() and int(cl) > self.max_bytes:
             from starlette.responses import JSONResponse
+
             return JSONResponse({"error": "request body too large"}, status_code=413)
         return await call_next(request)
 
 
 class RequestLogMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         rid = request.headers.get("x-request-id") or str(uuid.uuid4())
         start = time.perf_counter()
-        structlog.contextvars.bind_contextvars(request_id=rid, path=request.url.path, method=request.method)
+        structlog.contextvars.bind_contextvars(
+            request_id=rid, path=request.url.path, method=request.method
+        )
         try:
             response = await call_next(request)
             dur_ms = int((time.perf_counter() - start) * 1000)

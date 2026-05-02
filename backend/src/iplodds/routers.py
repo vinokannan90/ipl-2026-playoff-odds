@@ -55,14 +55,14 @@ async def leverage(
         raise HTTPException(422, "top_n must be 1..20")
     if team is not None and (len(team) > 5 or not team.isalpha()):
         raise HTTPException(422, "team must be a short alphabetic code")
-    return await leverage_agent.compute_leverage(
-        top_n=top_n, team_code=team, n_sims=n_sims
-    )
+    return await leverage_agent.compute_leverage(top_n=top_n, team_code=team, n_sims=n_sims)
 
 
 @router.get("/scout")
 @limiter.limit(lambda: get_settings().rate_limit_default)
-async def scout(request: Request, settings: Annotated[Settings, Depends(get_settings)], team: str | None = None) -> dict:  # noqa: ARG001
+async def scout(
+    request: Request, settings: Annotated[Settings, Depends(get_settings)], team: str | None = None
+) -> dict:  # noqa: ARG001
     if not settings.feature_scout:
         raise HTTPException(404, "feature disabled")
     return await scout_agent.fetch_signals(team)

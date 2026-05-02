@@ -33,6 +33,7 @@ def get_client() -> AsyncOpenAI | AsyncAzureOpenAI | None:
             return None
         # Use Managed Identity in production; fall back to env-based key only in dev.
         from azure.identity.aio import DefaultAzureCredential
+
         cred = DefaultAzureCredential()
 
         async def _token_provider() -> str:

@@ -22,7 +22,18 @@ def _three_teams() -> list[Team]:
 
 
 def test_teams_from_raw_basic():
-    raw = [{"TeamID": 7, "TeamCode": "RCB", "TeamName": "RCB", "Points": 6, "Wins": 3, "Loss": 1, "NoResult": 0, "NetRunRate": 0.4}]
+    raw = [
+        {
+            "TeamID": 7,
+            "TeamCode": "RCB",
+            "TeamName": "RCB",
+            "Points": 6,
+            "Wins": 3,
+            "Loss": 1,
+            "NoResult": 0,
+            "NetRunRate": 0.4,
+        }
+    ]
     out = teams_from_raw(raw)
     assert len(out) == 1
     assert out[0].id == "7" and out[0].code == "RCB" and out[0].pts == 6
@@ -30,8 +41,22 @@ def test_teams_from_raw_basic():
 
 def test_remaining_skips_completed_and_collects_h2h():
     raw = [
-        {"MatchID": "m1", "MatchStatus": "Post", "HomeTeamID": "1", "AwayTeamID": "2", "MatchWinnerID": "1"},
-        {"MatchID": "m2", "MatchStatus": "Upcoming", "HomeTeamID": "2", "AwayTeamID": "3", "HomeTeamCode": "B", "AwayTeamCode": "C", "MatchDate": "2026-04-01"},
+        {
+            "MatchID": "m1",
+            "MatchStatus": "Post",
+            "HomeTeamID": "1",
+            "AwayTeamID": "2",
+            "MatchWinnerID": "1",
+        },
+        {
+            "MatchID": "m2",
+            "MatchStatus": "Upcoming",
+            "HomeTeamID": "2",
+            "AwayTeamID": "3",
+            "HomeTeamCode": "B",
+            "AwayTeamCode": "C",
+            "MatchDate": "2026-04-01",
+        },
     ]
     by_id = {t.id: t for t in _three_teams()}
     rem, h2h = remaining_from_raw(raw, by_id)
@@ -43,8 +68,22 @@ def test_remaining_skips_completed_and_collects_h2h():
 def test_simulate_returns_expected_shape_and_bounds():
     teams = _three_teams()
     remaining = [
-        Match(match_id="m1", home_id="1", away_id="2", home_code="AAA", away_code="BBB", date="2026-04-01"),
-        Match(match_id="m2", home_id="2", away_id="3", home_code="BBB", away_code="CCC", date="2026-04-02"),
+        Match(
+            match_id="m1",
+            home_id="1",
+            away_id="2",
+            home_code="AAA",
+            away_code="BBB",
+            date="2026-04-01",
+        ),
+        Match(
+            match_id="m2",
+            home_id="2",
+            away_id="3",
+            home_code="BBB",
+            away_code="CCC",
+            date="2026-04-02",
+        ),
     ]
     out = simulate_with_leverage(
         teams=teams,
@@ -69,10 +108,21 @@ def test_simulate_returns_expected_shape_and_bounds():
 def test_simulate_is_deterministic_with_seed():
     teams = _three_teams()
     remaining = [
-        Match(match_id="m1", home_id="1", away_id="2", home_code="AAA", away_code="BBB", date="2026-04-01"),
+        Match(
+            match_id="m1",
+            home_id="1",
+            away_id="2",
+            home_code="AAA",
+            away_code="BBB",
+            date="2026-04-01",
+        ),
     ]
-    a = simulate_with_leverage(teams=teams, remaining=remaining, completed_h2h={}, n_sims=500, rng_seed=7)
-    b = simulate_with_leverage(teams=teams, remaining=remaining, completed_h2h={}, n_sims=500, rng_seed=7)
+    a = simulate_with_leverage(
+        teams=teams, remaining=remaining, completed_h2h={}, n_sims=500, rng_seed=7
+    )
+    b = simulate_with_leverage(
+        teams=teams, remaining=remaining, completed_h2h={}, n_sims=500, rng_seed=7
+    )
     assert a["leverage"] == b["leverage"]
 
 
@@ -80,7 +130,14 @@ def test_simulate_with_priors_shifts_swing():
     """When prior strongly favors home, samples_home_win >> samples_away_win."""
     teams = _three_teams()
     remaining = [
-        Match(match_id="m1", home_id="1", away_id="3", home_code="AAA", away_code="CCC", date="2026-04-01"),
+        Match(
+            match_id="m1",
+            home_id="1",
+            away_id="3",
+            home_code="AAA",
+            away_code="CCC",
+            date="2026-04-01",
+        ),
     ]
     out = simulate_with_leverage(
         teams=teams,
@@ -98,7 +155,14 @@ def test_simulate_with_priors_shifts_swing():
 def test_p_home_reported_matches_prior(p_home):
     teams = _three_teams()
     remaining = [
-        Match(match_id="m1", home_id="1", away_id="2", home_code="AAA", away_code="BBB", date="2026-04-01"),
+        Match(
+            match_id="m1",
+            home_id="1",
+            away_id="2",
+            home_code="AAA",
+            away_code="BBB",
+            date="2026-04-01",
+        ),
     ]
     out = simulate_with_leverage(
         teams=teams,
