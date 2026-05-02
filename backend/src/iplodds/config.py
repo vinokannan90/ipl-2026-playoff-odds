@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     blob_container: str = "cache"
     cache_ttl_standings_s: int = 300
     cache_ttl_schedule_s: int = 300
+    cache_ttl_live_s: int = 30        # short TTL for live-match scorecard fetches
     cache_ttl_priors_s: int = 86400  # 1 day
 
     # --- LLM (GitHub Models, OpenAI-compatible) ---

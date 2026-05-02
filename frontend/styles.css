@@ -1,14 +1,43 @@
+/* Light theme (default) */
 :root {
-  --bg: #0b1220;
-  --panel: #121a2e;
-  --panel2: #182240;
-  --ink: #e8ecf7;
-  --mute: #8a93ad;
-  --accent: #3ad29f;
-  --warn: #ffb454;
-  --bad: #ff6b6b;
-  --bar: #2a3554;
-  --focus: #6aa9ff;
+  --bg: #f8f9fb;
+  --panel: #ffffff;
+  --panel2: #f3f5f8;
+  --ink: #0f172a;
+  --mute: #64748b;
+  --text: #0f172a;
+  --accent: #059669;
+  --warn: #d97706;
+  --bad: #dc2626;
+  --bar: #e2e8f0;
+  --focus: #2563eb;
+  --border: #e2e8f0;
+  --code-bg: #f1f5f9;
+  --code-text: #1e293b;
+  --muted-bg: #f0fdf4;
+  --btn-primary-text: #ffffff;
+}
+
+/* Dark theme — activated by OS/browser dark mode preference */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b1220;
+    --panel: #121a2e;
+    --panel2: #182240;
+    --ink: #e8ecf7;
+    --mute: #8a93ad;
+    --text: #e8ecf7;
+    --accent: #3ad29f;
+    --warn: #ffb454;
+    --bad: #ff6b6b;
+    --bar: #2a3554;
+    --focus: #6aa9ff;
+    --border: #1e2a4a;
+    --code-bg: #0d1428;
+    --code-text: #cfd6ee;
+    --muted-bg: #182240;
+    --btn-primary-text: #072019;
+  }
 }
 
 * { box-sizing: border-box; }
@@ -18,7 +47,7 @@ html, body { height: 100%; }
 body {
   margin: 0;
   font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background: linear-gradient(180deg, #0a1020, #0b1220 30%);
+  background: var(--bg);
   color: var(--ink);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
@@ -29,7 +58,7 @@ body {
   left: -9999px;
   top: 0;
   background: var(--accent);
-  color: #072019;
+  color: var(--btn-primary-text);
   padding: 8px 12px;
   border-radius: 6px;
   z-index: 100;
@@ -44,7 +73,7 @@ body {
 
 header {
   padding: 20px 24px;
-  border-bottom: 1px solid #1e2a4a;
+  border-bottom: 1px solid var(--border);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -72,7 +101,7 @@ main {
 
 .card {
   background: var(--panel);
-  border: 1px solid #1e2a4a;
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 16px;
 }
@@ -94,7 +123,7 @@ main {
 select, button, input[type=number], input[type=text] {
   background: var(--panel2);
   color: var(--ink);
-  border: 1px solid #2a3554;
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 8px 10px;
   font-size: 13px;
@@ -105,7 +134,7 @@ input[type=text] { flex: 1; min-width: 200px; }
 button { cursor: pointer; }
 button.primary {
   background: var(--accent);
-  color: #072019;
+  color: var(--btn-primary-text);
   border-color: var(--accent);
   font-weight: 600;
 }
@@ -116,7 +145,7 @@ table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th, td {
   text-align: left;
   padding: 8px;
-  border-bottom: 1px solid #1e2a4a;
+  border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
 th {
@@ -131,27 +160,58 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .bar { background: var(--bar); height: 8px; border-radius: 4px; overflow: hidden; }
 .bar > span { display: block; height: 100%; background: var(--accent); }
 
+/* Playoff probability cell: bold % anchored to the left of its bar so the
+   number is visually bound to the bar (and clearly separate from the Top 2
+   column to its right). */
+.prob { display: flex; align-items: center; gap: 10px; min-width: 180px; }
+.prob-pct {
+  min-width: 52px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--text);
+}
+.prob .bar { flex: 1; min-width: 90px; }
+.top2-cell { border-left: 1px solid var(--border); padding-left: 14px !important; }
+
 .pill {
   display: inline-block;
   padding: 2px 8px;
   border-radius: 999px;
   font-size: 11px;
   font-weight: 600;
+  white-space: nowrap;
 }
-.pill.in  { background: rgba(58,210,159,.18); color: var(--accent); }
-.pill.in::before  { content: "● "; }
-.pill.out { background: rgba(255,107,107,.15); color: var(--bad); }
-.pill.out::before { content: "✕ "; }
-.pill.bub { background: rgba(255,180,84,.18); color: var(--warn); }
-.pill.bub::before { content: "◐ "; }
+/* Race to Top 2 (>75%) — strong green w/ star */
+.pill.top   { background: rgba(58,210,159,.22); color: var(--accent); }
+.pill.top::before   { content: "★ "; }
+/* In the Race (50.1–75%) — softer green dot */
+.pill.race  { background: rgba(58,210,159,.14); color: var(--accent); }
+.pill.race::before  { content: "● "; }
+/* Fighting (0.6–50%) — amber half-moon */
+.pill.fight { background: rgba(255,180,84,.18); color: var(--warn); }
+.pill.fight::before { content: "◐ "; }
+/* Unlikely (≤0.5%) — muted red empty circle */
+.pill.unl   { background: rgba(255,107,107,.10); color: var(--bad); }
+.pill.unl::before   { content: "◌ "; }
+/* Out of Race (0%) — solid red cross */
+.pill.out   { background: rgba(255,107,107,.18); color: var(--bad); }
+.pill.out::before   { content: "✕ "; }
 
 .small { font-size: 12px; color: var(--mute); }
 .row { display: flex; align-items: center; gap: 10px; }
 .logo { width: 22px; height: 22px; object-fit: contain; }
 
+/* Team column: code on top (bold), full name below (small/muted) so the
+   abbreviation reads first and the column stays narrow. */
+.team-cell { align-items: center; }
+.team-text { display: flex; flex-direction: column; line-height: 1.15; }
+.team-code { font-size: 13px; letter-spacing: .3px; }
+.team-name { font-size: 11px; }
+
 details {
   background: var(--panel2);
-  border: 1px solid #2a3554;
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 8px 12px;
   margin-top: 8px;
@@ -163,20 +223,28 @@ details summary { cursor: pointer; color: var(--mute); font-size: 12px; }
 
 .scenario {
   background: var(--panel2);
-  border: 1px solid #2a3554;
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 10px 12px;
 }
 .scenario .v { font-size: 22px; font-weight: 700; }
 
+/* Wins-needed tile colour states */
+.wins-needed.safe { border-left: 3px solid var(--accent); }
+.wins-needed.safe .v { color: var(--accent); }
+.wins-needed.out  { border-left: 3px solid var(--bad); opacity: 0.7; }
+.wins-needed.out  .v { color: var(--bad); }
+.wins-needed      { border-left: 3px solid var(--warn); }
+.wins-needed      .v { color: var(--warn); }
+
 .footnote { color: var(--mute); font-size: 11px; line-height: 1.5; }
 
 code {
-  background: #0d1428;
+  background: var(--code-bg);
   padding: 1px 5px;
   border-radius: 4px;
   font-size: 12px;
-  color: #cfd6ee;
+  color: var(--code-text);
 }
 
 .matchrow {
@@ -184,7 +252,7 @@ code {
   align-items: center;
   justify-content: space-between;
   padding: 4px 0;
-  border-bottom: 1px dashed #1e2a4a;
+  border-bottom: 1px dashed var(--border);
   font-size: 12px;
 }
 .matchrow:last-child { border: none; }
@@ -194,7 +262,7 @@ code {
 
 .agent-card .agent-answer {
   background: var(--panel2);
-  border: 1px solid #2a3554;
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px;
   font-size: 13px;
@@ -208,4 +276,127 @@ footer a { color: var(--accent); }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
+}
+
+/* ---------------- Season summary line ---------------- */
+.season-summary {
+  margin: -4px 0 12px;
+  font-size: 14px;
+  color: var(--ink);
+}
+.season-summary strong { color: var(--accent); }
+.latest-result {
+  display: inline-block;
+  margin-left: 2px;
+  padding: 1px 8px;
+  background: var(--muted-bg);
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--text);
+}
+.latest-result strong { color: var(--accent); }
+
+/* ---------------- "?" info icon ---------------- */
+.info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--bar);
+  color: var(--mute);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: help;
+  user-select: none;
+  vertical-align: middle;
+}
+.info-icon:focus { outline: 2px solid var(--accent); }
+
+/* ---------------- Rooting tile ---------------- */
+.rooting-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+.rooting-row {
+  display: grid;
+  grid-template-columns: 90px 1fr auto;
+  grid-template-areas:
+    "date match verdict"
+    "swing swing swing";
+  align-items: center;
+  gap: 6px 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel2);
+}
+.rooting-date { grid-area: date; }
+.rooting-match { grid-area: match; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.rooting-verdict { grid-area: verdict; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.rooting-swing { grid-area: swing; color: var(--mute); }
+.logo-sm { width: 20px; height: 20px; object-fit: contain; }
+
+/* ---------------- Mobile (<= 640px) ---------------- */
+@media (max-width: 640px) {
+  body { font-size: 14px; }
+  header, main, footer { padding-left: 12px; padding-right: 12px; }
+
+  /* Season summary: condense */
+  .season-summary { font-size: 13px; line-height: 1.4; }
+
+  /* Rooting rows stack to single column */
+  .rooting-row {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "match"
+      "verdict"
+      "date"
+      "swing";
+    gap: 4px;
+    padding: 8px;
+  }
+  .rooting-verdict { justify-content: flex-start; }
+  .rooting-date { font-size: 11px; }
+  .rooting-swing { font-size: 11px; line-height: 1.4; }
+
+  /* Tighter table: smaller padding, only show team code (hide full name),
+     drop low-signal columns (NR, NRR, Top 2 column shows but no divider). */
+  table { font-size: 12px; }
+  th, td { padding: 6px 4px; }
+  .team-name { display: none; }
+  .team-code { font-size: 13px; }
+  .logo { width: 20px; height: 20px; }
+  .row { gap: 6px; }
+
+  /* Hide secondary columns on phones (NR = 5th, NRR = 7th).
+     Order in <thead>: Team, P, W, L, NR, Pts, NRR, Playoff, Top 2, Pill */
+  table th:nth-child(5), table td:nth-child(5),  /* NR */
+  table th:nth-child(7), table td:nth-child(7) { /* NRR */
+    display: none;
+  }
+
+  /* Probability cell: shrink and let bar take what it can */
+  .prob { min-width: 0; gap: 6px; }
+  .prob-pct { min-width: 42px; font-size: 12px; }
+  .prob .bar { min-width: 40px; }
+  .top2-cell { padding-left: 8px !important; border-left-color: var(--border); }
+
+  /* Pill column: drop the label, keep only the icon to save space */
+  .pill { font-size: 0; padding: 4px 6px; }
+  .pill::before { font-size: 12px; }
+
+  /* Controls stack */
+  .controls, .row-controls { flex-wrap: wrap; gap: 8px; }
+  input[type=text] { min-width: 140px; }
+}
+
+/* Very narrow phones (<= 380px): also drop Pts column label weight and
+   collapse the pill column entirely. */
+@media (max-width: 380px) {
+  table th:last-child, table td:last-child { display: none; }
 }

@@ -85,3 +85,23 @@ async def get_schedule() -> dict[str, Any]:
     data = await _fetch(url)
     await cache.set(key, data)
     return data
+
+
+async def get_live_scorecard() -> dict[str, Any]:
+    """Fetch the schedule feed with a short TTL so live-match fields are fresh.
+
+    The IPL schedule feed embeds live scorecard fields (current batters, bowler,
+    innings summaries, run-rate, chasing text, etc.) for the in-progress match.
+    We use a separate cache key with a 30-second TTL so the agent always gets
+    reasonably current data during a live game.
+    """
+    s = get_settings()
+    cache = get_cache()
+    key = f"live-schedule-{s.iplt20_competition_id}.json"
+    cached = await cache.get(key, s.cache_ttl_live_s)
+    if cached is not None:
+        return cached
+    url = f"{s.iplt20_base}/{s.iplt20_competition_id}-matchschedule.js"
+    data = await _fetch(url)
+    await cache.set(key, data)
+    return data

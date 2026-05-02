@@ -3,8 +3,8 @@
 import * as api from "./api.js";
 import { loadDirect } from "./jsonp.js";
 import { normalizeStandings, buildScheduleModel } from "./model.js";
-import { simulate, teamWinProb } from "./sim.js";
-import { renderStandings, renderTeamView, renderAgentAnswer, renderLeverage } from "./render.js";
+import { simulate, teamWinProb, rootingAnalysis } from "./sim.js";
+import { renderStandings, renderTeamView, renderAgentAnswer, renderLeverage, renderRooting } from "./render.js";
 
 const CACHE_KEY = "iplodds:v1:data";
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -21,6 +21,7 @@ const STATE = {
 };
 
 const $ = (id) => document.getElementById(id);
+const escapeHtml = (s) => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 
 function setStatus(msg, isErr = false) {
   const el = $("status");
@@ -108,12 +109,40 @@ function hydrate(standingsRaw, scheduleRaw, source) {
   const sm = buildScheduleModel(scheduleRaw, STATE.byId);
   STATE.remaining = sm.remaining;
   STATE.completedH2H = sm.completedH2H;
+  STATE.latestCompleted = sm.latestCompleted || null;
   STATE.source = source;
 
   populateTeamSelect();
   $("dataMeta").textContent =
     `Standings rows: ${STATE.standings.length} · Remaining matches: ${STATE.remaining.length}` +
     ` · Source: ${source} · Refreshed: ${new Date().toLocaleString()}`;
+
+  // Season summary line above the table.
+  // IPL league stage: 10 teams × 14 matches / 2 sides = 70 matches.
+  const totalMatches = 70;
+  const playedTotal = Math.round(
+    STATE.standings.reduce((acc, t) => acc + t.matches, 0) / 2
+  );
+  const remaining = totalMatches - playedTotal;
+  const refreshed = new Date().toLocaleString("en-IN", {
+    day: "numeric", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit", hour12: true,
+  });
+  const summaryEl = $("seasonSummary");
+  if (summaryEl) {
+    let latestHtml = "";
+    const lc = STATE.latestCompleted;
+    if (lc && lc.resultText) {
+      // resultText from feed e.g. "Chennai Super Kings Won by 8 Wickets"
+      latestHtml = ` · <span class="latest-result">Latest: <strong>${escapeHtml(lc.resultText)}</strong></span>`;
+    }
+    summaryEl.innerHTML =
+      `<strong>${playedTotal}</strong> of ${totalMatches} league matches played · ` +
+      `<strong>${remaining}</strong> remaining · ` +
+      `Last updated <span class="small">${refreshed}</span>` +
+      latestHtml +
+      (source === "cache" ? ` <span class="small">· from cache</span>` : "");
+  }
 }
 
 function populateTeamSelect() {
@@ -190,6 +219,43 @@ async function handleAgentSubmit(e) {
   }
 }
 
+function handleRooting() {
+  const id = $("teamSel").value;
+  const status = $("rootingStatus");
+  const mount = $("rootingTable");
+  if (!id || !STATE.standings.length) {
+    status.textContent = "Pick a team first.";
+    return;
+  }
+  const team = STATE.byId[id];
+  status.textContent = "Replaying season…";
+  mount.innerHTML = "";
+  $("rootingBtn").disabled = true;
+  // Defer to next tick so the status text paints.
+  setTimeout(() => {
+    try {
+      const t0 = performance.now();
+      const data = rootingAnalysis({
+        standings: STATE.standings,
+        remaining: STATE.remaining,
+        completedH2H: STATE.completedH2H,
+        focusTeamId: id,
+        nSims: 5000,
+        biases: STATE.biases,
+        llmPriors: $("useLLMPriors").checked ? STATE.llmPriors : null,
+      });
+      const ms = (performance.now() - t0).toFixed(0);
+      renderRooting(data, team, mount);
+      status.textContent = `${data.nSims.toLocaleString()} sims · ${ms} ms`;
+    } catch (err) {
+      mount.innerHTML = `<p class="small">Rooting error: ${err.message}</p>`;
+      status.textContent = "";
+    } finally {
+      $("rootingBtn").disabled = false;
+    }
+  }, 20);
+}
+
 async function handleLeverage() {
   const status = $("leverageStatus");
   const mount = $("leverageTable");
@@ -227,6 +293,9 @@ function wire() {
         $("teamView"), $("teamFixtures"), teamWinProb,
       );
     }
+    // Reset rooting panel — it's team-specific.
+    $("rootingTable").innerHTML = "";
+    $("rootingStatus").textContent = "";
   });
   $("applyBias").addEventListener("click", () => {
     const id = $("teamSel").value;
@@ -248,6 +317,9 @@ function wire() {
   $("agentForm").addEventListener("submit", handleAgentSubmit);
   const levBtn = $("leverageBtn");
   if (levBtn) levBtn.addEventListener("click", handleLeverage);
+
+  const rootBtn = $("rootingBtn");
+  if (rootBtn) rootBtn.addEventListener("click", handleRooting);
 }
 
 wire();

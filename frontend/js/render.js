@@ -17,21 +17,36 @@ export function renderStandings(result, mountEl) {
     <th scope="col" class="num">Pts</th>
     <th scope="col" class="num">NRR</th>
     <th scope="col">Playoff Probability</th>
-    <th scope="col" class="num">Top 2</th>
-    <th scope="col"></th>
+    <th scope="col" class="num top2-cell">Top 2</th>
+    <th scope="col" title="Playoff outlook based on simulated chance of finishing in the top 4">Outlook</th>
   </tr></thead><tbody>`;
 
   for (const r of rows) {
     const t = r.team;
     const pct = (r.playoffProb * 100).toFixed(1);
     const top2 = (r.top2Prob * 100).toFixed(1);
-    let pillCls = "bub", pillTxt = "Bubble";
-    if (r.playoffProb >= 0.99) { pillCls = "in"; pillTxt = "Likely"; }
-    else if (r.playoffProb <= 0.01) { pillCls = "out"; pillTxt = "Unlikely"; }
+    // 5 outlook buckets keyed off playoff probability (top-4 finish chance).
+    const pctNum = r.playoffProb * 100;
+    let pillCls, pillTxt;
+    if (pctNum <= 0)        { pillCls = "out";   pillTxt = "Out of Race"; }
+    else if (pctNum <= 10)  { pillCls = "unl";   pillTxt = "Unlikely"; }
+    else if (pctNum <= 50)  { pillCls = "fight"; pillTxt = "Fighting"; }
+    else if (pctNum <= 80)  { pillCls = "race";  pillTxt = "In the Race"; }
+    else                    { pillCls = "top";   pillTxt = "Almost Through"; }
+    const pillTip =
+      "Playoff outlook (chance of finishing top 4):\n" +
+      "✕ Out of Race    — 0%\n" +
+      "◌ Unlikely       — 0.1% to 10%\n" +
+      "◐ Fighting       — 10.1% to 50%\n" +
+      "● In the Race    — 50.1% to 80%\n" +
+      "★ Almost Through — above 80%";
     html += `<tr>
-      <th scope="row"><div class="row">
+      <th scope="row"><div class="row team-cell">
         <img class="logo" src="${escapeHTML(t.logo)}" alt="${escapeHTML(t.code)} logo" loading="lazy" />
-        <div><strong>${escapeHTML(t.code)}</strong> <span class="small">${escapeHTML(t.name)}</span></div>
+        <div class="team-text">
+          <strong class="team-code">${escapeHTML(t.code)}</strong>
+          <span class="small team-name">${escapeHTML(t.name)}</span>
+        </div>
       </div></th>
       <td class="num">${t.matches}</td>
       <td class="num">${t.wins}</td>
@@ -40,19 +55,25 @@ export function renderStandings(result, mountEl) {
       <td class="num"><strong>${t.pts}</strong></td>
       <td class="num">${t.nrr.toFixed(3)}</td>
       <td>
-        <div class="bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100">
-          <span style="width:${pct}%"></span>
+        <div class="prob">
+          <strong class="prob-pct">${pct}%</strong>
+          <div class="bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="Playoff probability ${pct}%">
+            <span style="width:${pct}%"></span>
+          </div>
         </div>
-        <div class="small" style="margin-top:2px">${pct}%</div>
       </td>
-      <td class="num">${top2}%</td>
-      <td><span class="pill ${pillCls}">${pillTxt}</span></td>
+      <td class="num top2-cell">${top2}%</td>
+      <td><span class="pill ${pillCls}" title="${escapeHTML(pillTxt + ' — ' + pillTip)}" aria-label="${escapeHTML(pillTxt)}" tabindex="0">${pillTxt}</span></td>
     </tr>`;
   }
   html += "</tbody></table>";
   html += `<p class="footnote" style="margin-top:8px">
-    "Likely/Unlikely" reflects ≥99% / ≤1% across ${result.nSims.toLocaleString()} simulations
-    under current bias settings — not a mathematical guarantee.
+    Outlook (chance of top-4 finish across ${result.nSims.toLocaleString()} simulations):
+    <span class="pill out">Out of Race</span> 0% ·
+    <span class="pill unl">Unlikely</span> 0.1–10% ·
+    <span class="pill fight">Fighting</span> 10.1–50% ·
+    <span class="pill race">In the Race</span> 50.1–80% ·
+    <span class="pill top">Almost Through</span> &gt;80% — not a mathematical guarantee.
   </p>`;
   mountEl.innerHTML = html;
 }
@@ -66,10 +87,41 @@ export function renderTeamView(result, teamId, remaining, biases, llmPriors, mou
   const maxPts = t.pts + matchesLeft * 2;
 
   let html = "";
+
+  // "Wins needed" tile — full-width, top of the grid
+  // 16 pts is the historical heuristic for safe passage;
+  // not a mathematical guarantee (5 teams could theoretically all reach 16).
+  const SAFE_PTS = 16;
+  const ptsNeeded = Math.max(0, SAFE_PTS - t.pts);
+  const winsNeeded = Math.ceil(ptsNeeded / 2);
+  if (t.pts >= SAFE_PTS) {
+    html += `<div class="scenario wins-needed safe" style="grid-column:1/-1">
+      <div class="small">16-pt historically safe mark</div>
+      <div class="v">✓ Already there</div>
+      <div class="small">${t.pts} pts — past the heuristic threshold</div>
+    </div>`;
+  } else if (maxPts < SAFE_PTS) {
+    html += `<div class="scenario wins-needed out" style="grid-column:1/-1">
+      <div class="small">16-pt historically safe mark</div>
+      <div class="v">— Cannot reach ${SAFE_PTS} pts</div>
+      <div class="small">Max possible: ${maxPts} pts from ${matchesLeft} remaining matches</div>
+    </div>`;
+  } else {
+    html += `<div class="scenario wins-needed" style="grid-column:1/-1" title="16 pts is a historical heuristic, not a mathematical guarantee — NRR can still matter in a tie">
+      <div class="small">Wins needed to reach the 16-pt safe mark ⚑</div>
+      <div class="v">${winsNeeded} <span class="small">of ${matchesLeft} remaining</span></div>
+      <div class="small">${t.pts} pts now · need ${ptsNeeded} more pts · max possible: ${maxPts}</div>
+    </div>`;
+  }
+  html += `<p class="footnote" style="grid-column:1/-1; margin:0 0 4px">
+    ⚑ 16 pts = historically safe in IPL, but not a mathematical guarantee —
+    if 4 other teams also reach 16, NRR breaks the tie. 18+ pts is near-certain.
+  </p>`;
+
   html += `<div class="scenario"><div class="small">Playoff probability</div><div class="v">${(row.playoffProb*100).toFixed(1)}%</div></div>`;
   html += `<div class="scenario"><div class="small">Top-2 probability</div><div class="v">${(row.top2Prob*100).toFixed(1)}%</div></div>`;
-  html += `<div class="scenario"><div class="small">Expected final wins</div><div class="v">${row.expectedWins.toFixed(2)}</div><div class="small">from ${t.wins} now + ${matchesLeft} left</div></div>`;
-  html += `<div class="scenario"><div class="small">Expected final points</div><div class="v">${row.expectedPoints.toFixed(2)}</div><div class="small">max possible: ${maxPts}</div></div>`;
+  html += `<div class="scenario"><div class="small">Expected final wins</div><div class="v">${Math.round(row.expectedWins)}</div><div class="small">from ${t.wins} now + ${matchesLeft} left</div></div>`;
+  html += `<div class="scenario"><div class="small">Expected final points</div><div class="v">${Math.round(row.expectedPoints)}</div><div class="small">max possible: ${maxPts}</div></div>`;
 
   html += `<div class="scenario" style="grid-column:1/-1"><div class="small" style="margin-bottom:6px">Finish position distribution</div>`;
   for (let pos = 0; pos < row.finishDist.length; pos++) {
@@ -154,6 +206,62 @@ export function renderLeverage(payload, mountEl, focusTeam) {
     Swing = |P(qualify | home wins) − P(qualify | away wins)|, in percentage points.
     Single-pass conditional bucketing over ${nSims.toLocaleString()} simulations${withPriors ? " using LLM priors" : ""}.
     "low N" = fewer than 200 samples in one outcome bucket; treat with caution.
+  </p>`;
+  mountEl.innerHTML = html;
+}
+
+const TEAM_LOGO = (code) =>
+  code ? `https://scores.iplt20.com/ipl/teamlogos/${code}.png` : "";
+
+export function renderRooting(data, focusTeam, mountEl) {
+  if (!data || !data.matches || !data.matches.length) {
+    mountEl.innerHTML = `<p class="small">No other-team matches with enough samples to analyze.</p>`;
+    return;
+  }
+  const focusName = focusTeam ? focusTeam.name : "Your team";
+  const top = data.matches.slice(0, 3);
+  // For "rooting against" (avoid winners), pick matches whose helpful side gives focus the
+  // SMALLEST boost — i.e. the hurtful side is most damaging. Reuse the swing list, but
+  // present these as "if X wins, your odds drop most".
+  // Simplest: show the top 3 by swing as "key matches"; helpfulCode is who to root for.
+  const matchRow = (m, kind) => {
+    const helpful = m.helpfulCode;
+    const hurtful = m.hurtfulCode;
+    const pH = (m.pIfHomeWins * 100).toFixed(1);
+    const pA = (m.pIfAwayWins * 100).toFixed(1);
+    const swingPP = (m.swing * 100).toFixed(1);
+    const date = m.match.displayDate || "";
+    const homeLogo = TEAM_LOGO(m.match.homeCode);
+    const awayLogo = TEAM_LOGO(m.match.awayCode);
+    return `<div class="rooting-row ${kind}">
+      <div class="rooting-date small">${escapeHTML(date)}</div>
+      <div class="rooting-match">
+        <img class="logo logo-sm" src="${escapeHTML(homeLogo)}" alt=""/>
+        <strong>${escapeHTML(m.match.homeCode)}</strong>
+        <span class="small">vs</span>
+        <strong>${escapeHTML(m.match.awayCode)}</strong>
+        <img class="logo logo-sm" src="${escapeHTML(awayLogo)}" alt=""/>
+      </div>
+      <div class="rooting-verdict">
+        <span class="pill race">Root for ${escapeHTML(helpful)}</span>
+        <span class="pill out" title="If ${escapeHTML(hurtful)} wins, ${escapeHTML(focusName)}'s playoff odds drop">Avoid ${escapeHTML(hurtful)}</span>
+      </div>
+      <div class="rooting-swing small">
+        ${escapeHTML(m.match.homeCode)} wins → <strong>${pH}%</strong> ·
+        ${escapeHTML(m.match.awayCode)} wins → <strong>${pA}%</strong> ·
+        swing <strong>${swingPP} pp</strong>
+      </div>
+    </div>`;
+  };
+  let html = `<p class="small" style="margin:8px 0 4px">
+    Across the remaining season, these matches between OTHER teams swing
+    <strong>${escapeHTML(focusName)}</strong>'s playoff odds the most.
+  </p>`;
+  html += `<div class="rooting-list">${top.map((m) => matchRow(m, "key")).join("")}</div>`;
+  html += `<p class="footnote" style="margin-top:8px">
+    Computed by replaying ${data.nSims.toLocaleString()} seasons and bucketing each match's
+    outcome by whether ${escapeHTML(focusName)} qualified. "Root for" = the result that
+    most often coincides with you making playoffs.
   </p>`;
   mountEl.innerHTML = html;
 }
