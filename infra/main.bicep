@@ -253,7 +253,7 @@ resource ca 'Microsoft.App/containerApps@2024-03-01' = {
           env: [
             { name: 'IPLODDS_ENV', value: 'prod' }
             { name: 'IPLODDS_LOG_LEVEL', value: 'INFO' }
-            { name: 'IPLODDS_CORS_ORIGINS', value: 'https://${swa.properties.defaultHostname},https://ipl-prediction.in,https://www.ipl-prediction.in' }
+            { name: 'IPLODDS_CORS_ORIGINS', value: 'https://${swa.properties.defaultHostname},https://playoffodds.ai,https://www.playoffodds.ai' }
             { name: 'IPLODDS_BLOB_ACCOUNT_URL', value: 'https://${sa.name}.blob.${environment().suffixes.storage}' }
             { name: 'IPLODDS_LLM_PROVIDER', value: 'github' }
             { name: 'IPLODDS_GITHUB_MODELS_TOKEN', secretRef: 'github-models-token' }
@@ -267,7 +267,7 @@ resource ca 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: 0          // scale to zero when idle
+        minReplicas: 1          // keep one warm to avoid cold starts
         maxReplicas: 10
         rules: [
           {
