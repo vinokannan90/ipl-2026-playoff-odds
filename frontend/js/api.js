@@ -6,10 +6,11 @@
 const API_BASE = (typeof window !== "undefined" && window.__API_BASE__) || "";
 
 const TIMEOUT_MS = 15000;
+const AGENT_TIMEOUT_MS = 45000;
 
-async function fetchJSON(path, opts = {}) {
+async function fetchJSON(path, opts = {}, timeoutMs = TIMEOUT_MS) {
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const res = await fetch(`${API_BASE}${path}`, {
       ...opts,
@@ -51,7 +52,7 @@ export async function askAgent(question) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ question }),
-  });
+  }, AGENT_TIMEOUT_MS);
 }
 
 export function backendConfigured() {
