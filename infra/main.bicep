@@ -31,6 +31,12 @@ param tags object = {
   managedBy: 'azd'
 }
 
+@description('Custom hostnames to bind to the Static Web App. Apex domains must already have a TXT validation record published (see README §6c).')
+param customDomains array = [
+  { name: 'playoffodds.ai', validationMethod: 'dns-txt-token' }
+  { name: 'www.playoffodds.ai', validationMethod: 'cname-delegation' }
+]
+
 var uniq = uniqueString(resourceGroup().id, namePrefix)
 var saName = toLower('${namePrefix}st${take(uniq, 6)}')
 var kvName = toLower('${namePrefix}-kv-${take(uniq, 6)}')
@@ -42,6 +48,8 @@ var caEnvName = '${namePrefix}-cae'
 var caName = '${namePrefix}-api'
 var jobName = '${namePrefix}-daily'
 var swaName = '${namePrefix}-web'
+var customDomainOrigins = [for d in customDomains: 'https://${d.name}']
+var allCorsOrigins = union([ 'https://${swa.properties.defaultHostname}' ], customDomainOrigins)
 
 // ---------------- Observability ----------------
 resource law 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
@@ -229,7 +237,7 @@ resource ca 'Microsoft.App/containerApps@2024-03-01' = {
         allowInsecure: false
         traffic: [ { latestRevision: true, weight: 100 } ]
         corsPolicy: {
-          allowedOrigins: [ 'https://${swa.properties.defaultHostname}', 'https://ipl-prediction.in', 'https://www.ipl-prediction.in' ]
+          allowedOrigins: allCorsOrigins
           allowedMethods: [ 'GET', 'POST', 'OPTIONS' ]
           allowedHeaders: [ 'Content-Type' ]
           maxAge: 600
@@ -253,7 +261,7 @@ resource ca 'Microsoft.App/containerApps@2024-03-01' = {
           env: [
             { name: 'IPLODDS_ENV', value: 'prod' }
             { name: 'IPLODDS_LOG_LEVEL', value: 'INFO' }
-            { name: 'IPLODDS_CORS_ORIGINS', value: 'https://${swa.properties.defaultHostname},https://playoffodds.ai,https://www.playoffodds.ai' }
+            { name: 'IPLODDS_CORS_ORIGINS', value: join(allCorsOrigins, ',') }
             { name: 'IPLODDS_BLOB_ACCOUNT_URL', value: 'https://${sa.name}.blob.${environment().suffixes.storage}' }
             { name: 'IPLODDS_LLM_PROVIDER', value: 'github' }
             { name: 'IPLODDS_GITHUB_MODELS_TOKEN', secretRef: 'github-models-token' }
@@ -348,6 +356,18 @@ resource swa 'Microsoft.Web/staticSites@2023-12-01' = {
     stagingEnvironmentPolicy: 'Enabled'
   }
 }
+
+// Bind custom hostnames. For apex domains use 'dns-txt-token' and ensure the
+// TXT validation record is published in DNS BEFORE deploying, otherwise the
+// deployment will fail validation. Sub-domains use 'cname-delegation' and only
+// need the CNAME record to exist.
+resource swaDomains 'Microsoft.Web/staticSites/customDomains@2023-12-01' = [for d in customDomains: {
+  parent: swa
+  name: d.name
+  properties: {
+    validationMethod: d.validationMethod
+  }
+}]
 
 // ---------------- Outputs ----------------
 output backendUrl string = 'https://${ca.properties.configuration.ingress.fqdn}'
