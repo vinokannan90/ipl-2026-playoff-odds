@@ -16,9 +16,9 @@ export function renderStandings(result, mountEl) {
     <th scope="col" class="num">NR</th>
     <th scope="col" class="num">Pts</th>
     <th scope="col" class="num">NRR</th>
-    <th scope="col">Playoff Probability</th>
-    <th scope="col" class="num top2-cell">Top 2</th>
-    <th scope="col" title="Playoff outlook based on simulated chance of finishing in the top 4">Outlook</th>
+    <th scope="col" style="text-align:center">Top 4 %</th>
+    <th scope="col" title="Playoff race based on simulated chance of finishing in the top 4" style="border-left:2px solid var(--border)">Race</th>
+    <th scope="col" class="num top2-cell" style="border-left:2px solid var(--border)">Top 2</th>
   </tr></thead><tbody>`;
 
   for (const r of rows) {
@@ -34,7 +34,7 @@ export function renderStandings(result, mountEl) {
     else if (pctNum <= 80)  { pillCls = "race";  pillTxt = "In the Race"; }
     else                    { pillCls = "top";   pillTxt = "Almost Through"; }
     const pillTip =
-      "Playoff outlook (chance of finishing top 4):\n" +
+      "Playoff race (chance of finishing top 4):\n" +
       "✕ Out of Race    — 0%\n" +
       "◌ Unlikely       — 0.1% to 10%\n" +
       "◐ Fighting       — 10.1% to 50%\n" +
@@ -56,24 +56,24 @@ export function renderStandings(result, mountEl) {
       <td class="num">${t.nrr.toFixed(3)}</td>
       <td>
         <div class="prob">
-          <strong class="prob-pct">${pct}%</strong>
-          <div class="bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="Playoff probability ${pct}%">
+            <div class="bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="Top 4 probability ${pct}%">
             <span style="width:${pct}%"></span>
           </div>
+          <strong class="prob-pct">${pct}%</strong>
         </div>
       </td>
-      <td class="num top2-cell">${top2}%</td>
-      <td><span class="pill ${pillCls}" title="${escapeHTML(pillTxt + ' — ' + pillTip)}" aria-label="${escapeHTML(pillTxt)}" tabindex="0">${pillTxt}</span></td>
+      <td style="border-left:2px solid var(--border)"><span class="pill ${pillCls}" title="${escapeHTML(pillTxt + ' — ' + pillTip)}" aria-label="${escapeHTML(pillTxt)}" tabindex="0">${pillTxt}</span></td>
+      <td class="num top2-cell" style="border-left:2px solid var(--border)">${top2}%</td>
     </tr>`;
   }
   html += "</tbody></table>";
   html += `<p class="footnote" style="margin-top:8px">
-    Outlook (chance of top-4 finish across ${result.nSims.toLocaleString()} simulations):
-    <span class="pill out">Out of Race</span> 0% ·
-    <span class="pill unl">Unlikely</span> 0.1–10% ·
-    <span class="pill fight">Fighting</span> 10.1–50% ·
-    <span class="pill race">In the Race</span> 50.1–80% ·
-    <span class="pill top">Almost Through</span> &gt;80% — not a mathematical guarantee.
+    Race (chance of top-4 finish across ${result.nSims.toLocaleString()} simulations):
+    <span class="pill pill-legend out">Out of Race</span> 0% ·
+    <span class="pill pill-legend unl">Unlikely</span> 0.1–10% ·
+    <span class="pill pill-legend fight">Fighting</span> 10.1–50% ·
+    <span class="pill pill-legend race">In the Race</span> 50.1–80% ·
+    <span class="pill pill-legend top">Almost Through</span> &gt;80% — not a mathematical guarantee.
   </p>`;
   mountEl.innerHTML = html;
 }

@@ -163,7 +163,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 /* Playoff probability cell: bold % anchored to the left of its bar so the
    number is visually bound to the bar (and clearly separate from the Top 2
    column to its right). */
-.prob { display: flex; align-items: center; gap: 10px; min-width: 180px; }
+.prob { display: flex; align-items: center; justify-content: center; gap: 10px; min-width: 180px; }
 .prob-pct {
   min-width: 52px;
   text-align: right;
@@ -373,22 +373,24 @@ footer a { color: var(--accent); }
   .logo { width: 20px; height: 20px; }
   .row { gap: 6px; }
 
-  /* Hide secondary columns on phones (NR = 5th, NRR = 7th).
-     Order in <thead>: Team, P, W, L, NR, Pts, NRR, Playoff, Top 2, Pill */
-  table th:nth-child(5), table td:nth-child(5),  /* NR */
-  table th:nth-child(7), table td:nth-child(7) { /* NRR */
+  /* Hide secondary columns on phones (NR = 5th only; NRR shown to keep context).
+     Order in <thead>: Team, P, W, L, NR, Pts, NRR, Top4%, Race, Top2 */
+  table th:nth-child(5), table td:nth-child(5) { /* NR */
     display: none;
   }
 
-  /* Probability cell: shrink and let bar take what it can */
-  .prob { min-width: 0; gap: 6px; }
-  .prob-pct { min-width: 42px; font-size: 12px; }
-  .prob .bar { min-width: 40px; }
+  /* Probability cell: compact bar to reclaim space for NRR column */
+  .prob { min-width: 0; gap: 4px; }
+  .prob-pct { min-width: 38px; font-size: 11px; }
+  .prob .bar { min-width: 24px; }
   .top2-cell { padding-left: 8px !important; border-left-color: var(--border); }
 
   /* Pill column: drop the label, keep only the icon to save space */
   .pill { font-size: 0; padding: 4px 6px; }
   .pill::before { font-size: 12px; }
+  /* Legend pills always show text regardless of screen size */
+  .pill-legend { font-size: 11px; padding: 3px 6px; }
+  .pill-legend::before { font-size: 11px; }
 
   /* Controls stack */
   .controls, .row-controls { flex-wrap: wrap; gap: 8px; }
