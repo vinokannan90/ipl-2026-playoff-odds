@@ -26,11 +26,13 @@ Tools available:
 - get_remaining_fixtures: upcoming matches, optionally filtered by team
 - get_priors: LLM-derived per-match win probabilities
 - get_leverage: which remaining matches swing playoff odds most
-- get_live_match: live scorecard for any match currently in progress (batters, bowler, score, run-rate, chasing target). Data refreshes every 30 seconds.
+- get_live_match: live scorecard for any match currently in progress
+  (batters, bowler, score, run-rate, chasing target). Data refreshes every 30 s.
 
 Style: concise, factual, neutral. 2-4 sentences max unless a scorecard genuinely needs more.
 Always cite the data you used (standings/fixtures/live_match etc).
-For live match questions ("what's the score?", "who's batting?", "how many overs left?") always call get_live_match first.
+For live match questions ("what's the score?", "who's batting?", "overs left?")
+always call get_live_match first.
 If no match is live, say so clearly and offer to show upcoming fixtures.
 If the user's question is unrelated to IPL 2026 or playoff odds, decline politely.
 Never speculate about injuries, lineups, or news you don't have a tool for.
@@ -48,12 +50,15 @@ async def ask(question: str) -> dict[str, Any]:
     ]
     citations: list[dict[str, str]] = []
 
-    for round_idx in range(MAX_ROUNDS):
+    for _round_idx in range(MAX_ROUNDS):
         try:
             resp = await llm.chat(messages=messages, tools=TOOL_SCHEMAS, max_tokens=600)
         except Exception:
             log.exception("agent.llm_failed")
-            return {"text": "The agent is temporarily unavailable. Please try again.", "citations": []}
+            return {
+                "text": "The agent is temporarily unavailable. Please try again.",
+                "citations": [],
+            }
 
         msg = resp.choices[0].message
         tool_calls = msg.tool_calls or []
@@ -86,7 +91,8 @@ async def ask(question: str) -> dict[str, Any]:
             else:
                 try:
                     tool_result = await fn(**args)
-                    citations.append({"label": f"{name}({', '.join(f'{k}={v}' for k, v in args.items())})", "url": ""})
+                    label = f"{name}({', '.join(f'{k}={v}' for k, v in args.items())})"
+                    citations.append({"label": label, "url": ""})
                 except Exception as e:
                     log.exception("agent.tool_failed", tool=name)
                     tool_result = {"error": f"tool {name} failed: {type(e).__name__}"}
@@ -96,4 +102,7 @@ async def ask(question: str) -> dict[str, Any]:
                 "content": orjson.dumps(tool_result).decode(),
             })
 
-    return {"text": "Reached the tool-call limit without producing a final answer.", "citations": citations}
+    return {
+        "text": "Reached the tool-call limit without producing a final answer.",
+        "citations": citations,
+    }

@@ -12,6 +12,7 @@ from iplodds.agents import leverage as leverage_agent
 from iplodds.agents import priors as priors_agent
 from iplodds.data import iplt20_client
 
+
 async def get_standings_tool() -> dict[str, Any]:
     """Return current league standings."""
     raw = await iplt20_client.get_standings()
@@ -113,8 +114,14 @@ async def get_live_match_tool() -> dict[str, Any]:
         bat2_id = str(m.get("SecondBattingTeamID") or "")
         home = (m.get("HomeTeamCode") or "").upper() or id_to_code.get(home_id, home_id)
         away = (m.get("AwayTeamCode") or "").upper() or id_to_code.get(away_id, away_id)
-        bat1_code = (m.get("FirstBattingTeamCode") or "").upper() or id_to_code.get(bat1_id, bat1_id)
-        bat2_code = (m.get("SecondBattingTeamCode") or "").upper() or id_to_code.get(bat2_id, bat2_id)
+        bat1_code = (
+            (m.get("FirstBattingTeamCode") or "").upper()
+            or id_to_code.get(bat1_id, bat1_id)
+        )
+        bat2_code = (
+            (m.get("SecondBattingTeamCode") or "").upper()
+            or id_to_code.get(bat2_id, bat2_id)
+        )
 
         return {
             "live": True,
@@ -161,7 +168,10 @@ async def get_live_match_tool() -> dict[str, Any]:
 
     return {
         "live": False,
-        "message": "No IPL match is currently in progress. Check the schedule for upcoming fixtures.",
+        "message": (
+            "No IPL match is currently in progress. "
+            "Check the schedule for upcoming fixtures."
+        ),
     }
 
 
@@ -179,10 +189,15 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         "type": "function",
         "function": {
             "name": "get_remaining_fixtures",
-            "description": "Return remaining IPL 2026 fixtures, optionally filtered by team code (e.g. 'RCB').",
+            "description": (
+                "Return remaining IPL 2026 fixtures, optionally filtered"
+                " by team code (e.g. 'RCB')."
+            ),
             "parameters": {
                 "type": "object",
-                "properties": {"team_code": {"type": "string", "description": "3-letter team code"}},
+                "properties": {
+                    "team_code": {"type": "string", "description": "3-letter team code"},
+                },
                 "additionalProperties": False,
             },
         },
@@ -199,7 +214,11 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         "type": "function",
         "function": {
             "name": "get_leverage",
-            "description": "Return remaining matches ranked by how much they swing playoff probabilities. Optionally focus on a team_code (e.g. 'RCB') to rank by that team's leverage.",
+            "description": (
+                "Return remaining matches ranked by how much they swing playoff"
+                " probabilities. Optionally focus on a team_code (e.g. 'RCB')"
+                " to rank by that team's leverage."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -228,7 +247,9 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
 
 TOOL_DISPATCH = {
     "get_standings": lambda **kw: get_standings_tool(),
-    "get_remaining_fixtures": lambda **kw: get_remaining_fixtures_tool(team_code=kw.get("team_code")),
+    "get_remaining_fixtures": lambda **kw: get_remaining_fixtures_tool(
+        team_code=kw.get("team_code")
+    ),
     "get_priors": lambda **kw: get_priors_tool(),
     "get_leverage": lambda **kw: get_leverage_tool(
         team_code=kw.get("team_code"), top_n=int(kw.get("top_n") or 5)

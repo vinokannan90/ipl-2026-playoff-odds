@@ -8,7 +8,6 @@ but are sourced from Key Vault with managed-identity access.
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 

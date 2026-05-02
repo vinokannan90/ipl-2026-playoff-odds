@@ -60,7 +60,7 @@ def test_simulate_returns_expected_shape_and_bounds():
         assert 0.0 <= t["top2Prob"] <= 1.0
     assert len(out["leverage"]) == 2
     for m in out["leverage"]:
-        assert 0.0 <= m["totalLeverage"]
+        assert m["totalLeverage"] >= 0.0
         assert m["samplesHomeWin"] + m["samplesAwayWin"] <= 2000
         for swing in m["perTeam"].values():
             assert 0.0 <= swing <= 1.0
