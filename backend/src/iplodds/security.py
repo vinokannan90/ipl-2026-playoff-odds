@@ -60,6 +60,7 @@ class BodySizeLimitMiddleware(BaseHTTPMiddleware):
 
                     return JSONResponse({"error": "request body too large"}, status_code=413)
                 chunks.append(chunk)
+
             # Replace the stream so the next handler can still read the body
             async def _replay():
                 for c in chunks:
