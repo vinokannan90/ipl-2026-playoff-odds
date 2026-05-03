@@ -49,6 +49,23 @@ class BodySizeLimitMiddleware(BaseHTTPMiddleware):
             from starlette.responses import JSONResponse
 
             return JSONResponse({"error": "request body too large"}, status_code=413)
+        # Also enforce on actual stream (no Content-Length or chunked transfer)
+        if request.method in ("POST", "PUT", "PATCH"):
+            body_size = 0
+            chunks = []
+            async for chunk in request.stream():
+                body_size += len(chunk)
+                if body_size > self.max_bytes:
+                    from starlette.responses import JSONResponse
+
+                    return JSONResponse({"error": "request body too large"}, status_code=413)
+                chunks.append(chunk)
+            # Replace the stream so the next handler can still read the body
+            async def _replay():
+                for c in chunks:
+                    yield c
+
+            request._stream = _replay()  # noqa: SLF001
         return await call_next(request)
 
 

@@ -53,6 +53,8 @@ async def leverage(
         raise HTTPException(404, "feature disabled")
     if top_n < 1 or top_n > 20:
         raise HTTPException(422, "top_n must be 1..20")
+    if n_sims < 100 or n_sims > 10000:
+        raise HTTPException(422, "n_sims must be 100..10000")
     if team is not None and (len(team) > 5 or not team.isalpha()):
         raise HTTPException(422, "team must be a short alphabetic code")
     return await leverage_agent.compute_leverage(top_n=top_n, team_code=team, n_sims=n_sims)

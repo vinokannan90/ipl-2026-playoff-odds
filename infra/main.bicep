@@ -163,7 +163,7 @@ resource kvRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 resource githubTokenSecret 'Microsoft.KeyVault/vaults/secrets@2024-04-01-preview' = {
   parent: kv
   name: 'github-models-token'
-  properties: { value: 'set-me-via-cli', attributes: { enabled: true } }
+  properties: { value: 'set-me-via-cli', attributes: { enabled: false } }
 }
 
 // ---------------- Container Registry ----------------
