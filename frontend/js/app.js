@@ -215,7 +215,7 @@ async function handleAgentSubmit(e) {
     const ans = await api.askAgent(q);
     renderAgentAnswer(ans, $("agentAnswer"));
   } catch (err) {
-    renderAgentAnswer({ text: "Agent error: " + escapeHtml(err.message) }, $("agentAnswer"));
+    renderAgentAnswer({ text: "Agent error: " + err.message }, $("agentAnswer"));
   }
 }
 
