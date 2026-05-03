@@ -23,18 +23,31 @@ jobs:
           lfs: false
 
       - name: Inject backend URL into staticwebapp.config.json + dev-config.js
+        shell: bash
         run: |
+          set -euo pipefail
+
           BACKEND_URL="${{ vars.BACKEND_URL }}"
+          if [[ -z "${BACKEND_URL}" ]]; then
+            echo "ERROR: vars.BACKEND_URL is not set"
+            exit 1
+          fi
+
           BACKEND_HOST="${BACKEND_URL#https://}"
           BACKEND_HOST="${BACKEND_HOST#http://}"
+
           sed -i "s|__BACKEND_URL__|${BACKEND_HOST}|g" frontend/staticwebapp.config.json
-          # Override the dev-only auto-wire so the deployed page hits the
-          # Container App via CORS (SWA Free doesn't support absolute rewrites).
-          cat > frontend/js/dev-config.js <<EOF
+
+          # Write dev-config.js with literal placeholders (quoted heredoc = no shell expansion inside)
+          cat > frontend/js/dev-config.js <<'EOF'
           // Generated at deploy time by frontend-deploy.yml
-          window.__API_BASE__ = "${BACKEND_URL}";
-          window.__APPINSIGHTS_CS__ = "${{ vars.APPINSIGHTS_CONNECTION_STRING }}";
+          window.__API_BASE__ = "__BACKEND_URL__";
+          window.__APPINSIGHTS_CS__ = "__APPINSIGHTS_CONNECTION_STRING__";
           EOF
+
+          # Replace placeholders after file is written (safe: no quoting hazards)
+          sed -i "s|__BACKEND_URL__|${BACKEND_URL}|g" frontend/js/dev-config.js
+          sed -i "s|__APPINSIGHTS_CONNECTION_STRING__|${{ vars.APPINSIGHTS_CONNECTION_STRING }}|g" frontend/js/dev-config.js
 
       - uses: Azure/static-web-apps-deploy@v1
         with:
