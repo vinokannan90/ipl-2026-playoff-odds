@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import sys
 from contextlib import asynccontextmanager
 
@@ -21,6 +22,14 @@ from iplodds.security import (
     RequestLogMiddleware,
     SecurityHeadersMiddleware,
 )
+
+# Configure Azure Monitor as early as possible so all requests and dependencies
+# are instrumented. Reads APPLICATIONINSIGHTS_CONNECTION_STRING from env.
+# No-ops silently in local dev where the env var is absent.
+if os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"):
+    from azure.monitor.opentelemetry import configure_azure_monitor
+
+    configure_azure_monitor(logger_name="iplodds")
 
 
 def _configure_logging(level: str) -> None:

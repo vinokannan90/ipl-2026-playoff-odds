@@ -33,6 +33,7 @@ jobs:
           cat > frontend/js/dev-config.js <<EOF
           // Generated at deploy time by frontend-deploy.yml
           window.__API_BASE__ = "${BACKEND_URL}";
+          window.__APPINSIGHTS_CS__ = "${{ vars.APPINSIGHTS_CONNECTION_STRING }}";
           EOF
 
       - uses: Azure/static-web-apps-deploy@v1

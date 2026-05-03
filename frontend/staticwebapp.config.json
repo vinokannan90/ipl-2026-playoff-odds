@@ -24,7 +24,7 @@
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=(), interest-cohort=()",
     "Cross-Origin-Opener-Policy": "same-origin",
-    "Content-Security-Policy": "default-src 'self'; img-src 'self' https://scores.iplt20.com https://www.iplt20.com data:; style-src 'self' 'unsafe-inline'; script-src 'self' https://scores.iplt20.com; connect-src 'self' https://*.azurecontainerapps.io; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
+    "Content-Security-Policy": "default-src 'self'; img-src 'self' https://scores.iplt20.com https://www.iplt20.com data:; style-src 'self' 'unsafe-inline'; script-src 'self' https://scores.iplt20.com https://js.monitor.azure.com; connect-src 'self' https://*.azurecontainerapps.io https://*.applicationinsights.azure.com https://*.monitor.azure.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
   },
   "mimeTypes": {
     ".json": "application/json",

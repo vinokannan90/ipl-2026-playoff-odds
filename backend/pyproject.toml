@@ -20,6 +20,7 @@ dependencies = [
     "structlog>=24.4",
     "tenacity>=9.0",
     "orjson>=3.10",
+    "azure-monitor-opentelemetry>=1.6",
 ]
 
 [project.optional-dependencies]

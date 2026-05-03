@@ -11,8 +11,8 @@
         content="default-src 'self';
                  img-src 'self' https://scores.iplt20.com https://www.iplt20.com data:;
                  style-src 'self' 'unsafe-inline';
-                 script-src 'self' https://scores.iplt20.com;
-                 connect-src 'self' http://localhost:8000 http://127.0.0.1:8000 https://scores.iplt20.com https://*.azurecontainerapps.io;
+                 script-src 'self' https://scores.iplt20.com https://js.monitor.azure.com;
+                 connect-src 'self' http://localhost:8000 http://127.0.0.1:8000 https://scores.iplt20.com https://*.azurecontainerapps.io https://*.applicationinsights.azure.com https://*.monitor.azure.com;
                  frame-ancestors 'none';
                  base-uri 'self';
                  form-action 'self';" />
@@ -28,6 +28,9 @@
 
   <link rel="stylesheet" href="./styles.css" />
   <script src="./js/dev-config.js"></script>
+  <!-- Azure Application Insights — loaded before app.js so pageView fires on first load -->
+  <script src="https://js.monitor.azure.com/scripts/b/ai.3.gbl.min.js"></script>
+  <script src="./js/analytics.js"></script>
 </head>
 <body>
   <a class="skip-link" href="#standingsCard">Skip to standings</a>
