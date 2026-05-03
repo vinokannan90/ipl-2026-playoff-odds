@@ -215,7 +215,7 @@ async function handleAgentSubmit(e) {
     const ans = await api.askAgent(q);
     renderAgentAnswer(ans, $("agentAnswer"));
   } catch (err) {
-    renderAgentAnswer({ text: "Agent error: " + err.message }, $("agentAnswer"));
+    renderAgentAnswer({ text: "Agent error: " + escapeHtml(err.message) }, $("agentAnswer"));
   }
 }
 
@@ -248,7 +248,7 @@ function handleRooting() {
       renderRooting(data, team, mount);
       status.textContent = `${data.nSims.toLocaleString()} sims · ${ms} ms`;
     } catch (err) {
-      mount.innerHTML = `<p class="small">Rooting error: ${err.message}</p>`;
+      mount.innerHTML = `<p class="small">Rooting error: ${escapeHtml(err.message)}</p>`;
       status.textContent = "";
     } finally {
       $("rootingBtn").disabled = false;
@@ -273,7 +273,7 @@ async function handleLeverage() {
     status.textContent = `${data.matches.length} matches · ${data.nSims.toLocaleString()} sims${data.withPriors ? " · LLM priors" : ""}`;
   } catch (err) {
     status.textContent = "";
-    mount.innerHTML = `<p class="small">Leverage error: ${err.message}</p>`;
+    mount.innerHTML = `<p class="small">Leverage error: ${escapeHtml(err.message)}</p>`;
   } finally {
     $("leverageBtn").disabled = false;
   }
