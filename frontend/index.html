@@ -37,9 +37,8 @@
   <header>
     <div>
       <h1>IPL 2026 — Playoff Probability Simulator</h1>
-      <p class="meta">Live data · Top 4 of 10 qualify · Monte Carlo over remaining fixtures</p>
+      <p class="meta">Live data · Top 4 of 10 qualify</p>
     </div>
-    <p class="meta" id="status" role="status" aria-live="polite">Loading…</p>
   </header>
 
   <main>
@@ -47,13 +46,6 @@
       <h2 id="standingsHeading">Live Standings &amp; Playoff Odds</h2>
       <p class="season-summary" id="seasonSummary" aria-live="polite"></p>
       <div class="controls">
-        <label class="small" for="nSims">
-          Simulations:
-          <input type="number" id="nSims" value="20000" min="1000" max="200000" step="1000"
-                 title="How many times to replay the rest of the season. Higher = smoother numbers but slower. 20,000 is the sweet spot." />
-          <span class="info-icon" tabindex="0"
-                title="What is this? The simulator replays every remaining match this many times, picking a winner each time using either a 50/50 coin flip or your chosen bias. The percentages on the right are how often each team finished top 4 across all those replays. 20,000 is fast and accurate; bump higher only if you care about the tiny ≤1% numbers.">?</span>
-        </label>
         <label class="small">
           <input type="checkbox" id="useLLMPriors" />
           Use LLM-derived priors (when available)

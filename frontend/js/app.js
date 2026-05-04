@@ -25,6 +25,7 @@ const escapeHtml = (s) => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").r
 
 function setStatus(msg, isErr = false) {
   const el = $("status");
+  if (!el) return;
   el.textContent = msg;
   el.className = isErr ? "meta err" : "meta";
 }
@@ -133,8 +134,16 @@ function hydrate(standingsRaw, scheduleRaw, source) {
     let latestHtml = "";
     const lc = STATE.latestCompleted;
     if (lc && lc.resultText) {
-      // resultText from feed e.g. "Chennai Super Kings Won by 8 Wickets"
-      latestHtml = ` · <span class="latest-result">Latest: <strong>${escapeHtml(lc.resultText)}</strong></span>`;
+      // Build "GT beat PBKS · Won by 4 Wickets" from available fields
+      const loserCode = lc.winnerCode
+        ? (lc.winnerCode === lc.homeCode ? lc.awayCode : lc.homeCode)
+        : null;
+      const wonIdx = lc.resultText.indexOf(" Won ");
+      const margin = wonIdx !== -1 ? lc.resultText.slice(wonIdx + 1) : lc.resultText;
+      const label = lc.winnerCode && loserCode
+        ? `${lc.winnerCode} beat ${loserCode} · ${margin}`
+        : lc.resultText;
+      latestHtml = ` · <span class="latest-result">Latest: <strong>${escapeHtml(label)}</strong></span>`;
     }
     summaryEl.innerHTML =
       `<strong>${playedTotal}</strong> of ${totalMatches} league matches played · ` +
@@ -174,7 +183,7 @@ function populateTeamSelect() {
 }
 
 function runSimulation() {
-  const n = Math.max(1000, Math.min(200000, parseInt($("nSims").value, 10) || 20000));
+  const n = 20000;
   setStatus(`Running ${n.toLocaleString()} simulations…`);
   setTimeout(() => {
     const t0 = performance.now();
@@ -187,7 +196,7 @@ function runSimulation() {
       llmPriors: $("useLLMPriors").checked ? STATE.llmPriors : null,
     });
     const ms = (performance.now() - t0).toFixed(0);
-    setStatus(`Simulated ${n.toLocaleString()} seasons in ${ms} ms · ${STATE.remaining.length} matches remaining · ${STATE.source}`);
+    setStatus(`Simulated ${n.toLocaleString()} seasons in ${ms} ms`);
     renderStandings(STATE.lastResult, $("standingsTable"));
     renderTeamView(
       STATE.lastResult,
