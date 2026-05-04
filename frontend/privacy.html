@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#0b1220" />
+
+  <!-- Same CSP as index.html — no scripts on this page except dev-config -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self';
+                 img-src 'self' data:;
+                 style-src 'self' 'unsafe-inline';
+                 script-src 'self';
+                 connect-src 'none';
+                 frame-ancestors 'none';
+                 base-uri 'self';
+                 form-action 'self';" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <meta name="robots" content="noindex" />
+
+  <title>Privacy Notice — IPL 2026 Playoff Odds</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header>
+    <div>
+      <h1><a href="/" style="color:inherit;text-decoration:none">IPL 2026 — Playoff Probability Simulator</a></h1>
+      <p class="meta">Privacy Notice</p>
+    </div>
+  </header>
+
+  <main id="main" style="max-width:680px;margin:0 auto">
+    <section class="card span-2">
+      <h2>Privacy Notice</h2>
+      <p><em>Last updated: May 2026</em></p>
+
+      <h3>What we collect</h3>
+      <p>
+        This site uses <strong>Microsoft Azure Application Insights</strong> solely to understand
+        how the app is used in aggregate — for example, how many people visit each day and which
+        features are used. No names, email addresses, or login credentials are collected because
+        the site has no accounts.
+      </p>
+
+      <h3>What Application Insights records</h3>
+      <ul class="footnote" style="line-height:1.8">
+        <li><strong>Page views</strong> — which page was loaded and roughly when.</li>
+        <li><strong>Browser &amp; device type</strong> — e.g. Chrome on Android, Safari on iOS.</li>
+        <li><strong>Country / region</strong> — derived from the anonymised IP address. The full IP
+            address is <em>not</em> stored by Application Insights.</li>
+        <li><strong>Performance timings</strong> — how long pages and API calls take to load.</li>
+        <li><strong>Errors</strong> — JavaScript exceptions or failed network requests, so we can
+            fix bugs.</li>
+      </ul>
+      <p>
+        Two first-party cookies are set by the SDK:
+      </p>
+      <ul class="footnote" style="line-height:1.8">
+        <li><code>ai_user</code> — a random identifier stored for up to 365 days, used to count
+            distinct visitors (not tied to any personal identity).</li>
+        <li><code>ai_session</code> — a session identifier, expires when you close the browser tab.</li>
+      </ul>
+
+      <h3>What we do not collect</h3>
+      <ul class="footnote" style="line-height:1.8">
+        <li>No names, email addresses, or any account information (the site has no accounts).</li>
+        <li>No full IP addresses — Microsoft truncates them before storage.</li>
+        <li>No advertising or marketing tracking of any kind.</li>
+        <li>We do not sell, share, or monetise any data.</li>
+      </ul>
+
+      <h3>Data processor</h3>
+      <p>
+        Analytics data is processed by Microsoft Corporation under their
+        <a href="https://privacy.microsoft.com/en-us/privacystatement" rel="noopener noreferrer">
+          Privacy Statement</a>.
+        Data is stored in the Azure region selected during resource provisioning and subject to
+        Microsoft's data residency commitments.
+      </p>
+
+      <h3>Retention</h3>
+      <p>
+        Application Insights retains data for 90 days by default. No other copies are kept.
+      </p>
+
+      <h3>Contact</h3>
+      <p>
+        Questions? Open an issue on the
+        <a href="https://github.com/vinokannan90/ipl-2026-playoff-odds" rel="noopener">GitHub repository</a>.
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    <p class="footnote">
+      <a href="/">← Back to app</a>
+    </p>
+  </footer>
+</body>
+</html>
