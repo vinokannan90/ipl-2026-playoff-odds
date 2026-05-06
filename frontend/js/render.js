@@ -7,7 +7,9 @@ function escapeHTML(s) {
 }
 
 export function renderStandings(result, mountEl) {
-  const rows = result.rows.slice().sort((a, b) => b.playoffProb - a.playoffProb);
+  const rows = result.rows.slice().sort((a, b) =>
+    b.team.pts - a.team.pts || b.team.nrr - a.team.nrr
+  );
   let html = `<table><thead><tr>
     <th scope="col">Team</th>
     <th scope="col" class="num">P</th>
