@@ -184,7 +184,8 @@ function buildLiveScoreHtml(m) {
     scoreText = parts.join(" | ");
     if (m.chasingText) scoreText += ` | ${escapeHtml(m.chasingText)}`;
   }
-  return `<span class="live-score">Live: <strong>${scoreText}</strong></span>`;
+  const url = `https://www.iplt20.com/match/2026/${encodeURIComponent(m.matchId)}`;
+  return `<a class="live-score" href="${url}" target="_blank" rel="noopener noreferrer">Live: <strong>${scoreText}</strong></a>`;
 }
 
 function startLivePolling() {
