@@ -137,7 +137,6 @@ def simulate_with_leverage(
     biases = biases or {}
     rng = random.Random(rng_seed) if rng_seed is not None else random
     n_teams = len(teams)
-    n_rem = len(remaining)
     ids = [t.id for t in teams]
     idx = {tid: i for i, tid in enumerate(ids)}
 
@@ -149,6 +148,7 @@ def simulate_with_leverage(
 
     # Filter matches to known teams
     rem = [m for m in remaining if m.home_id in idx and m.away_id in idx]
+    n_rem = len(rem)  # use filtered length — remaining may include non-league matches
     p_home = [_resolve_p_home(m, biases, priors) for m in rem]
     home_i = [idx[m.home_id] for m in rem]
     away_i = [idx[m.away_id] for m in rem]

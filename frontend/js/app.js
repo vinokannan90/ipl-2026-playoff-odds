@@ -18,6 +18,7 @@ const STATE = {
   llmPriors: null,
   lastResult: null,
   source: "unknown",
+  latestBadgeHtml: "",
 };
 
 const $ = (id) => document.getElementById(id);
@@ -131,7 +132,7 @@ function hydrate(standingsRaw, scheduleRaw, source) {
   });
   const summaryEl = $("seasonSummary");
   if (summaryEl) {
-    let latestHtml = "";
+    let badgeHtml = "";
     const lc = STATE.latestCompleted;
     if (lc && lc.resultText) {
       // Build "GT beat PBKS · Won by 4 Wickets" from available fields
@@ -143,16 +144,75 @@ function hydrate(standingsRaw, scheduleRaw, source) {
       const label = lc.winnerCode && loserCode
         ? `${lc.winnerCode} beat ${loserCode} · ${margin}`
         : lc.resultText;
-      latestHtml = ` · <span class="latest-result">Latest: <strong>${escapeHtml(label)}</strong></span>`;
+      badgeHtml = `<span class="latest-result">Latest: <strong>${escapeHtml(label)}</strong></span>`;
     }
+    STATE.latestBadgeHtml = badgeHtml;
     summaryEl.innerHTML =
       `<strong>${playedTotal}</strong> of ${totalMatches} league matches played · ` +
       `<strong>${remaining}</strong> remaining · ` +
       `Last updated <span class="small">${refreshed}</span>` +
-      latestHtml +
+      ` · <span id="liveOrLatest">${badgeHtml}</span>` +
       (source === "cache" ? ` <span class="small">· from cache</span>` : "");
+    // Non-blocking live check — replaces badge if a match is in progress
+    if (api.backendConfigured()) checkLive().catch(() => {});
   }
 }
+
+// ---- Live score helpers ----
+
+let livePoller = null;
+
+function buildLiveScoreHtml(m) {
+  const innings = m.innings || [];
+  const currentInnings = m.currentInnings || 1;
+  let scoreText = "";
+  const matchup = `${escapeHtml(m.homeCode)} vs ${escapeHtml(m.awayCode)}`;
+  if (!innings.length) {
+    scoreText = matchup;
+  } else {
+    const active = innings.find(i => i.inningNum === currentInnings);
+    const completed = innings.filter(i => i.inningNum !== currentInnings);
+    const parts = [matchup];
+    completed.forEach(i => {
+      const overs = i.overs ? ` (${escapeHtml(i.overs)})` : "";
+      parts.push(`${escapeHtml(i.teamCode)} ${escapeHtml(i.score)}${overs}`);
+    });
+    if (active) {
+      const overs = active.overs ? ` · ${escapeHtml(active.overs)} Ov` : "";
+      parts.push(`${escapeHtml(active.teamCode)} batting - ${escapeHtml(active.score)}${overs}`);
+    }
+    scoreText = parts.join(" | ");
+    if (m.chasingText) scoreText += ` | ${escapeHtml(m.chasingText)}`;
+  }
+  return `<span class="live-score">Live: <strong>${scoreText}</strong></span>`;
+}
+
+function startLivePolling() {
+  if (livePoller) return;
+  livePoller = setInterval(() => checkLive().catch(() => {}), 30_000);
+}
+
+function stopLivePolling() {
+  if (livePoller) { clearInterval(livePoller); livePoller = null; }
+}
+
+async function checkLive() {
+  const data = await api.getLive();
+  const live = (data && data.live) || [];
+  const badge = document.getElementById("liveOrLatest");
+  if (!badge) return;
+  if (!live.length) {
+    // Match just ended — restore latest-result badge and stop polling
+    badge.innerHTML = STATE.latestBadgeHtml;
+    stopLivePolling();
+    return;
+  }
+  // Show the match closest to finishing (already sorted server-side)
+  badge.innerHTML = buildLiveScoreHtml(live[0]);
+  startLivePolling();
+}
+
+// ---- End live score helpers ----
 
 function populateTeamSelect() {
   const sel = $("teamSel");
@@ -208,6 +268,7 @@ function runSimulation() {
       $("teamFixtures"),
       teamWinProb,
     );
+    handleRooting();
   }, 20);
 }
 
@@ -302,9 +363,9 @@ function wire() {
         $("teamView"), $("teamFixtures"), teamWinProb,
       );
     }
-    // Reset rooting panel — it's team-specific.
-    $("rootingTable").innerHTML = "";
-    $("rootingStatus").textContent = "";
+    // Auto-compute rooting analysis (in-browser, fast).
+    if (STATE.lastResult && STATE.standings.length) handleRooting();
+    else { $("rootingTable").innerHTML = ""; $("rootingStatus").textContent = ""; }
   });
   $("applyBias").addEventListener("click", () => {
     const id = $("teamSel").value;

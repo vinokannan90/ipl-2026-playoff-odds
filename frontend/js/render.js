@@ -219,7 +219,7 @@ export function renderRooting(data, focusTeam, mountEl) {
     return;
   }
   const focusName = focusTeam ? focusTeam.name : "Your team";
-  const top = data.matches.slice(0, 3);
+  const top = data.matches.slice(0, 7);
   // For "rooting against" (avoid winners), pick matches whose helpful side gives focus the
   // SMALLEST boost — i.e. the hurtful side is most damaging. Reuse the swing list, but
   // present these as "if X wins, your odds drop most".
@@ -233,6 +233,11 @@ export function renderRooting(data, focusTeam, mountEl) {
     const date = m.match.displayDate || "";
     const homeLogo = TEAM_LOGO(m.match.homeCode);
     const awayLogo = TEAM_LOGO(m.match.awayCode);
+    // Show helpful side first in the swing line
+    const firstCode  = m.helpfulSide === "home" ? m.match.homeCode : m.match.awayCode;
+    const firstPct   = m.helpfulSide === "home" ? pH : pA;
+    const secondCode = m.helpfulSide === "home" ? m.match.awayCode : m.match.homeCode;
+    const secondPct  = m.helpfulSide === "home" ? pA : pH;
     return `<div class="rooting-row ${kind}">
       <div class="rooting-date small">${escapeHTML(date)}</div>
       <div class="rooting-match">
@@ -247,15 +252,16 @@ export function renderRooting(data, focusTeam, mountEl) {
         <span class="pill out" title="If ${escapeHTML(hurtful)} wins, ${escapeHTML(focusName)}'s playoff odds drop">Avoid ${escapeHTML(hurtful)}</span>
       </div>
       <div class="rooting-swing small">
-        ${escapeHTML(m.match.homeCode)} wins → <strong>${pH}%</strong> ·
-        ${escapeHTML(m.match.awayCode)} wins → <strong>${pA}%</strong> ·
+        ${escapeHTML(firstCode)} wins → <strong>${firstPct}%</strong> ·
+        ${escapeHTML(secondCode)} wins → <strong>${secondPct}%</strong> ·
         swing <strong>${swingPP} pp</strong>
       </div>
     </div>`;
   };
   let html = `<p class="small" style="margin:8px 0 4px">
-    Across the remaining season, these matches between OTHER teams swing
-    <strong>${escapeHTML(focusName)}</strong>'s playoff odds the most.
+    Upcoming other-team matches in date order — showing the swing on
+    <strong>${escapeHTML(focusName)}</strong>'s playoff odds. Root for the
+    highlighted side to boost your chances.
   </p>`;
   html += `<div class="rooting-list">${top.map((m) => matchRow(m, "key")).join("")}</div>`;
   html += `<p class="footnote" style="margin-top:8px">

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -30,6 +31,87 @@ async def standings(request: Request) -> dict:  # noqa: ARG001
 @limiter.limit(lambda: get_settings().rate_limit_default)
 async def schedule(request: Request) -> dict:  # noqa: ARG001
     return await iplt20_client.get_schedule()
+
+
+def _parse_overs(s: str) -> float:
+    """Convert "18.2" or "18" to a float for progress comparisons."""
+    try:
+        return float(s)
+    except (ValueError, TypeError):
+        return 0.0
+
+
+_SCORE_RE = re.compile(r"(\d+/\d+)\s*\(([0-9.]+)\s*Ov", re.IGNORECASE)
+
+
+def _parse_score_summary(summary: str) -> dict[str, str]:
+    """Parse "223/3 (19.2 Ov)" or "223/3 (19.2 Overs)" into score/overs."""
+    m = _SCORE_RE.search(summary)
+    if m:
+        return {"score": m.group(1), "overs": m.group(2)}
+    return {"score": summary.strip(), "overs": ""}
+
+
+@router.get("/live")
+@limiter.limit(lambda: get_settings().rate_limit_default)
+async def live_score(request: Request) -> dict:  # noqa: ARG001
+    """Returns in-progress match scores using the short-TTL live feed (30 s cache).
+
+    Returns at most the two concurrent matches that could happen on a weekend
+    double-header, sorted by overs played descending so the match closest to
+    finishing comes first.
+    """
+    data = await iplt20_client.get_live_scorecard()
+    matches = data.get("Matchsummary", [])
+    live = []
+    for m in matches:
+        status = (m.get("MatchStatus") or "").lower().strip()
+        if "live" not in status and "progress" not in status:
+            continue
+
+        first_code = m.get("FirstBattingTeamCode") or ""
+        second_code = m.get("SecondBattingTeamCode") or ""
+        current_innings = int(m.get("CurrentInnings") or 1)
+
+        # Build innings list from flat numbered summary fields in the feed.
+        # Fields: "1Summary" = "223/3 (19.2 Overs)", "2Summary" = "" if not started.
+        innings = []
+        for inning_num in (1, 2):
+            raw = (
+                m.get(f"{inning_num}Summary")
+                or (m.get("FirstBattingSummary") if inning_num == 1 else m.get("SecondBattingSummary"))
+                or ""
+            )
+            if not raw:
+                continue
+            team_code = first_code if inning_num == 1 else second_code
+            parsed = _parse_score_summary(raw)
+            innings.append({
+                "inningNum": inning_num,
+                "teamCode": team_code,
+                "score": parsed["score"],
+                "overs": parsed["overs"],
+            })
+
+        # Compute progress for sorting: 2nd-innings matches rank higher than 1st-innings.
+        active = next((i for i in innings if i["inningNum"] == current_innings), None)
+        overs_played = _parse_overs(active["overs"]) if active else 0.0
+        if current_innings == 2:
+            overs_played += 20.0
+
+        live.append({
+            "matchId": str(m.get("MatchID", "")),
+            "homeCode": first_code,
+            "awayCode": second_code,
+            "currentInnings": current_innings,
+            "innings": innings,
+            "chasingText": m.get("ChasingText") or "",
+            "matchName": m.get("MatchName") or "",
+            "oversPlayed": overs_played,
+        })
+    # Most advanced match first (weekend dual-match edge case)
+    live.sort(key=lambda x: x["oversPlayed"], reverse=True)
+    return {"live": live}
 
 
 @router.get("/priors")

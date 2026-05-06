@@ -55,6 +55,10 @@ export async function askAgent(question) {
   }, AGENT_TIMEOUT_MS);
 }
 
+export async function getLive() {
+  return fetchJSON("/api/live");
+}
+
 export function backendConfigured() {
   return Boolean(API_BASE);
 }

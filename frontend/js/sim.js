@@ -230,6 +230,12 @@ export function rootingAnalysis({
       hurtfulCode: helpfulSide === "home" ? rem[ri].awayCode : rem[ri].homeCode,
     });
   }
-  out.sort((a, b) => b.swing - a.swing);
+  // Sort by date (nearest first), with ties broken by swing descending.
+  out.sort((a, b) => {
+    const da = a.match.sortKey || a.match.displayDate || "";
+    const db = b.match.sortKey || b.match.displayDate || "";
+    if (da !== db) return da < db ? -1 : 1;
+    return b.swing - a.swing;
+  });
   return { focusTeamId, nSims, matches: out };
 }
