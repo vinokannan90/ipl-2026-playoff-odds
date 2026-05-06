@@ -79,19 +79,25 @@ async def live_score(request: Request) -> dict:  # noqa: ARG001
         for inning_num in (1, 2):
             raw = (
                 m.get(f"{inning_num}Summary")
-                or (m.get("FirstBattingSummary") if inning_num == 1 else m.get("SecondBattingSummary"))
+                or (
+                    m.get("FirstBattingSummary")
+                    if inning_num == 1
+                    else m.get("SecondBattingSummary")
+                )
                 or ""
             )
             if not raw:
                 continue
             team_code = first_code if inning_num == 1 else second_code
             parsed = _parse_score_summary(raw)
-            innings.append({
-                "inningNum": inning_num,
-                "teamCode": team_code,
-                "score": parsed["score"],
-                "overs": parsed["overs"],
-            })
+            innings.append(
+                {
+                    "inningNum": inning_num,
+                    "teamCode": team_code,
+                    "score": parsed["score"],
+                    "overs": parsed["overs"],
+                }
+            )
 
         # Compute progress for sorting: 2nd-innings matches rank higher than 1st-innings.
         active = next((i for i in innings if i["inningNum"] == current_innings), None)
@@ -99,16 +105,18 @@ async def live_score(request: Request) -> dict:  # noqa: ARG001
         if current_innings == 2:
             overs_played += 20.0
 
-        live.append({
-            "matchId": str(m.get("MatchID", "")),
-            "homeCode": first_code,
-            "awayCode": second_code,
-            "currentInnings": current_innings,
-            "innings": innings,
-            "chasingText": m.get("ChasingText") or "",
-            "matchName": m.get("MatchName") or "",
-            "oversPlayed": overs_played,
-        })
+        live.append(
+            {
+                "matchId": str(m.get("MatchID", "")),
+                "homeCode": first_code,
+                "awayCode": second_code,
+                "currentInnings": current_innings,
+                "innings": innings,
+                "chasingText": m.get("ChasingText") or "",
+                "matchName": m.get("MatchName") or "",
+                "oversPlayed": overs_played,
+            }
+        )
     # Most advanced match first (weekend dual-match edge case)
     live.sort(key=lambda x: x["oversPlayed"], reverse=True)
     return {"live": live}
