@@ -12,7 +12,7 @@ Endpoints used:
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 import httpx
@@ -175,7 +175,7 @@ def _parse_dt(match: dict[str, Any]) -> datetime:
     try:
         return datetime.fromisoformat(raw.replace("Z", "+00:00"))
     except Exception:
-        return datetime.min.replace(tzinfo=timezone.utc)
+        return datetime.min.replace(tzinfo=datetime.UTC)
 
 
 def _parse_scorecard(data: dict[str, Any]) -> dict[str, Any]:
@@ -292,7 +292,7 @@ async def get_scorecard(match_hint: str | None = None) -> dict[str, Any]:
     if not matches:
         return {"error": "IPL 2026 match list is empty in CricAPI."}
 
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=datetime.UTC)
     sorted_matches = sorted(matches, key=_parse_dt, reverse=True)
 
     if match_hint and normalised_hint not in _LIVE_HINTS:
