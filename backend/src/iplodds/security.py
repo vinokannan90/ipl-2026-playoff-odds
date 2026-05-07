@@ -36,38 +36,69 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
-class BodySizeLimitMiddleware(BaseHTTPMiddleware):
+class BodySizeLimitMiddleware:
+    """Pure ASGI middleware that enforces a max body size and replays the
+    buffered body via the receive channel so downstream handlers can read it.
+
+    Implemented as raw ASGI (not BaseHTTPMiddleware) because BaseHTTPMiddleware
+    does not expose a supported way to re-inject a consumed request body —
+    setting ``request._stream`` is a no-op in Starlette and causes downstream
+    body reads to return empty, which surfaces as HTTP 422 on JSON endpoints.
+    """
+
     def __init__(self, app: ASGIApp, max_bytes: int) -> None:
-        super().__init__(app)
+        self.app = app
         self.max_bytes = max_bytes
 
-    async def dispatch(
-        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
-    ) -> Response:
-        cl = request.headers.get("content-length")
-        if cl and cl.isdigit() and int(cl) > self.max_bytes:
-            from starlette.responses import JSONResponse
+    async def __call__(self, scope: dict, receive: Callable, send: Callable) -> None:
+        if scope.get("type") != "http":
+            await self.app(scope, receive, send)
+            return
 
-            return JSONResponse({"error": "request body too large"}, status_code=413)
-        # Also enforce on actual stream (no Content-Length or chunked transfer)
-        if request.method in ("POST", "PUT", "PATCH"):
-            body_size = 0
-            chunks = []
-            async for chunk in request.stream():
-                body_size += len(chunk)
-                if body_size > self.max_bytes:
-                    from starlette.responses import JSONResponse
+        from starlette.responses import JSONResponse
 
-                    return JSONResponse({"error": "request body too large"}, status_code=413)
-                chunks.append(chunk)
+        # Fast-path: reject oversize bodies declared via Content-Length.
+        for name, value in scope.get("headers") or []:
+            if name == b"content-length" and value.isdigit() and int(value) > self.max_bytes:
+                response = JSONResponse({"error": "request body too large"}, status_code=413)
+                await response(scope, receive, send)
+                return
 
-            # Replace the stream so the next handler can still read the body
-            async def _replay():
-                for c in chunks:
-                    yield c
+        method = scope.get("method", "GET").upper()
+        if method not in ("POST", "PUT", "PATCH"):
+            await self.app(scope, receive, send)
+            return
 
-            request._stream = _replay()  # noqa: SLF001
-        return await call_next(request)
+        # Buffer the full body, enforcing the cap on chunked / unknown-length streams.
+        chunks: list[bytes] = []
+        total = 0
+        more_body = True
+        while more_body:
+            message = await receive()
+            if message["type"] == "http.disconnect":
+                return
+            if message["type"] != "http.request":
+                continue
+            chunk = message.get("body", b"") or b""
+            total += len(chunk)
+            if total > self.max_bytes:
+                response = JSONResponse({"error": "request body too large"}, status_code=413)
+                await response(scope, receive, send)
+                return
+            chunks.append(chunk)
+            more_body = message.get("more_body", False)
+
+        body = b"".join(chunks)
+        replayed = False
+
+        async def replay_receive() -> dict:
+            nonlocal replayed
+            if not replayed:
+                replayed = True
+                return {"type": "http.request", "body": body, "more_body": False}
+            return await receive()
+
+        await self.app(scope, replay_receive, send)
 
 
 class RequestLogMiddleware(BaseHTTPMiddleware):
