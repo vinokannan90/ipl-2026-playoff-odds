@@ -44,6 +44,13 @@ class Settings(BaseSettings):
     azure_openai_api_version: str = "2024-10-21"
     azure_openai_deployment: str = ""
 
+    # --- CricAPI / cricketdata.org (full scorecard) ---
+    cricketdata_api_key: str = ""  # Key Vault ref in prod
+    cricketdata_ipl_series_id: str = ""  # GUID; auto-discovered if blank
+    cache_ttl_scorecard_live_s: int = 120  # 2 min while match is in-progress
+    cache_ttl_scorecard_post_s: int = 14400  # 4 hrs after match completes
+    cache_ttl_series_s: int = 7200  # 2 hrs for season match list
+
     # --- Feature flags ---
     feature_priors: bool = True
     feature_agent: bool = True

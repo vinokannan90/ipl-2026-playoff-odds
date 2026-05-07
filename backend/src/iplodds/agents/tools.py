@@ -10,7 +10,8 @@ from typing import Any
 
 from iplodds.agents import leverage as leverage_agent
 from iplodds.agents import priors as priors_agent
-from iplodds.data import iplt20_client
+from iplodds.config import get_settings
+from iplodds.data import cricketdata_client, iplt20_client
 
 
 async def get_standings_tool() -> dict[str, Any]:
@@ -149,6 +150,7 @@ async def get_live_match_tool() -> dict[str, Any]:
                 "nonStriker": m.get("CurrentNonStrikerName"),
                 "nonStrikerRuns": m.get("NonStrikerRuns"),
                 "nonStrikerBalls": m.get("NonStrikerBalls"),
+                "nonStrikerSR": m.get("NonStrikerSR"),
             },
             "bowling": {
                 "bowler": m.get("CurrentBowlerName"),
@@ -172,6 +174,19 @@ async def get_live_match_tool() -> dict[str, Any]:
             "No IPL match is currently in progress. Check the schedule for upcoming fixtures."
         ),
     }
+
+
+async def get_scorecard_tool(match: str | None = None) -> dict[str, Any]:
+    """Return the full batting and bowling scorecard for an IPL 2026 match.
+
+    Falls back gracefully if the cricketdata API key is not configured.
+    """
+    if not get_settings().cricketdata_api_key:
+        return {
+            "error": "Full scorecard is not available on this server.",
+            "note": "IPLODDS_CRICKETDATA_API_KEY is not configured.",
+        }
+    return await cricketdata_client.get_scorecard(match_hint=match)
 
 
 # OpenAI tool schemas
@@ -235,9 +250,40 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "Return live scorecard for the IPL match currently in progress: "
                 "batters, bowler, innings summaries, run-rate, chasing context, "
                 "projected score, and toss. Data is at most 30 seconds old. "
-                "Returns {live: false} if no match is currently being played."
+                "Returns {live: false} if no match is currently being played. "
+                "NOTE: the 'batting' field contains ONLY the 2 batters currently "
+                "at the crease — it is NOT a full match batting scorecard. Do not "
+                "make claims about which batter in the overall match has the highest "
+                "strike rate or most runs; you can only compare the current 2 batters."
             ),
             "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_scorecard",
+            "description": (
+                "Return the full batting and bowling scorecard for an IPL 2026 match. "
+                "Includes all batters (runs, balls, 4s, 6s, strike-rate, dismissal) and "
+                "all bowlers (overs, maidens, runs, wickets, economy) for each innings. "
+                "If 'match' is omitted, returns the most recent or currently live match. "
+                "Use a team code (e.g. 'RCB', 'MI') or description (e.g. 'CSK vs MI') "
+                "to select a specific match."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "match": {
+                        "type": "string",
+                        "description": (
+                            "Optional team code (e.g. 'RCB') or match description "
+                            "(e.g. 'CSK vs MI'). Omit to get the most recent/live match."
+                        ),
+                    }
+                },
+                "additionalProperties": False,
+            },
         },
     },
 ]
@@ -253,4 +299,5 @@ TOOL_DISPATCH = {
         team_code=kw.get("team_code"), top_n=int(kw.get("top_n") or 5)
     ),
     "get_live_match": lambda **kw: get_live_match_tool(),
+    "get_scorecard": lambda **kw: get_scorecard_tool(match=kw.get("match")),
 }

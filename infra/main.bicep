@@ -250,6 +250,11 @@ resource ca 'Microsoft.App/containerApps@2024-03-01' = {
           keyVaultUrl: '${kv.properties.vaultUri}secrets/github-models-token'
           identity: mi.id
         }
+        {
+          name: 'cricketdata-api-key'
+          keyVaultUrl: '${kv.properties.vaultUri}secrets/cricketdata-api-key'
+          identity: mi.id
+        }
       ]
     }
     template: {
@@ -265,6 +270,7 @@ resource ca 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'IPLODDS_BLOB_ACCOUNT_URL', value: 'https://${sa.name}.blob.${environment().suffixes.storage}' }
             { name: 'IPLODDS_LLM_PROVIDER', value: 'github' }
             { name: 'IPLODDS_GITHUB_MODELS_TOKEN', secretRef: 'github-models-token' }
+            { name: 'IPLODDS_CRICKETDATA_API_KEY', secretRef: 'cricketdata-api-key' }
             { name: 'AZURE_CLIENT_ID', value: mi.properties.clientId }
             { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appi.properties.ConnectionString }
           ]
@@ -321,6 +327,11 @@ resource job 'Microsoft.App/jobs@2024-03-01' = {
           keyVaultUrl: '${kv.properties.vaultUri}secrets/github-models-token'
           identity: mi.id
         }
+        {
+          name: 'cricketdata-api-key'
+          keyVaultUrl: '${kv.properties.vaultUri}secrets/cricketdata-api-key'
+          identity: mi.id
+        }
       ]
     }
     template: {
@@ -335,6 +346,7 @@ resource job 'Microsoft.App/jobs@2024-03-01' = {
             { name: 'IPLODDS_BLOB_ACCOUNT_URL', value: 'https://${sa.name}.blob.${environment().suffixes.storage}' }
             { name: 'IPLODDS_LLM_PROVIDER', value: 'github' }
             { name: 'IPLODDS_GITHUB_MODELS_TOKEN', secretRef: 'github-models-token' }
+            { name: 'IPLODDS_CRICKETDATA_API_KEY', secretRef: 'cricketdata-api-key' }
             { name: 'AZURE_CLIENT_ID', value: mi.properties.clientId }
           ]
         }
