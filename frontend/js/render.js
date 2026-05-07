@@ -131,7 +131,7 @@ export function renderTeamView(result, teamId, remaining, biases, llmPriors, mou
     const w = (p * 100).toFixed(1);
     const cls = pos < 4 ? "in" : "out";
     html += `<div style="display:flex; align-items:center; gap:8px; margin:2px 0">
-      <span class="pill ${cls}" style="width:42px; text-align:center">${pos + 1}</span>
+      <span class="pill pill-pos ${cls}" style="width:42px; text-align:center">${pos + 1}</span>
       <div class="bar" style="flex:1"><span style="width:${w}%"></span></div>
       <span class="small" style="width:48px; text-align:right">${w}%</span>
     </div>`;

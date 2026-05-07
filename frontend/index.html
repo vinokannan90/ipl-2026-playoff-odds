@@ -68,12 +68,19 @@
         <label class="small" for="teamSel">Team:
           <select id="teamSel"></select>
         </label>
-        <label class="small" for="teamWin">Per-match win prob (overrides 50/50):
-          <input type="number" id="teamWin" value="50" min="0" max="100" step="1" /> %
-        </label>
-        <button id="applyBias" type="button">Apply &amp; resimulate</button>
       </div>
       <div id="teamView" class="grid2"></div>
+      <details class="advanced-toggle" style="margin:8px 0">
+        <summary class="small" style="cursor:pointer">
+          Advanced: assume this team wins each remaining match with a custom probability
+        </summary>
+        <div class="controls" style="margin-top:8px">
+          <label class="small" for="teamWin">Win probability per remaining match (default 50%):
+            <input type="number" id="teamWin" value="50" min="0" max="100" step="1" /> %
+          </label>
+          <button id="applyBias" type="button">Apply &amp; resimulate</button>
+        </div>
+      </details>
       <div>
         <h4 class="small" style="margin:8px 0 4px">Remaining fixtures for this team</h4>
         <div id="teamFixtures"></div>
