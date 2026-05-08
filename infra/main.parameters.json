@@ -4,6 +4,7 @@
   "parameters": {
     "namePrefix": { "value": "${AZURE_NAME_PREFIX=iplodds}" },
     "location":   { "value": "${AZURE_LOCATION=centralindia}" },
-    "backendImage": { "value": "${SERVICE_API_IMAGE_NAME=mcr.microsoft.com/k8se/quickstart:latest}" }
+    "backendImage": { "value": "${SERVICE_API_IMAGE_NAME=mcr.microsoft.com/k8se/quickstart:latest}" },
+    "githubModelsToken": { "value": "${GITHUB_MODELS_TOKEN}" }
   }
 }

@@ -24,6 +24,10 @@ param location string = resourceGroup().location
 @description('Container image for the backend (e.g. ghcr.io/<owner>/iplodds-backend:sha-abc).')
 param backendImage string = 'mcr.microsoft.com/k8se/quickstart:latest'
 
+@description('GitHub fine-grained PAT for GitHub Models API. Set once via: azd env set GITHUB_MODELS_TOKEN <token>')
+@secure()
+param githubModelsToken string = ''
+
 @description('Tags applied to every resource.')
 param tags object = {
   app: 'iplodds'
@@ -159,11 +163,14 @@ resource kvRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   }
 }
 
-// Placeholder secret (real value set out-of-band via az CLI or GitHub Actions)
+// Secret slot for GitHub Models PAT.
+// Value comes from the 'githubModelsToken' parameter (set via: azd env set GITHUB_MODELS_TOKEN <token>).
+// If the parameter is empty (e.g. first-time deploy without setting it), a placeholder is written
+// and the agent will be unavailable until the real value is stored.
 resource githubTokenSecret 'Microsoft.KeyVault/vaults/secrets@2024-04-01-preview' = {
   parent: kv
   name: 'github-models-token'
-  properties: { value: 'set-me-via-cli', attributes: { enabled: true } }
+  properties: { value: empty(githubModelsToken) ? 'set-me-via-cli' : githubModelsToken, attributes: { enabled: true } }
 }
 
 // ---------------- Container Registry ----------------
