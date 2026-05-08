@@ -419,6 +419,9 @@ a.live-score:hover { background: rgba(220, 38, 38, 0.22); border-color: rgba(220
   /* Pill column: drop the label, keep only the icon to save space */
   .pill { font-size: 0; padding: 4px 6px; }
   .pill::before { font-size: 12px; }
+  /* Rooting verdict pills have no icon — always show full text */
+  .rooting-verdict .pill { font-size: 12px; padding: 4px 10px; white-space: nowrap; }
+  .rooting-verdict .pill::before { font-size: 12px; }
   /* Legend pills always show text regardless of screen size */
   .pill-legend { font-size: 11px; padding: 3px 6px; }
   .pill-legend::before { font-size: 11px; }
