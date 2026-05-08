@@ -4,6 +4,7 @@
 //   - Storage Account (Blob cache)
 //   - Key Vault (secrets, RBAC mode)
 //   - User-Assigned Managed Identity (used by Container App + Job)
+//   - Azure OpenAI account + gpt-4o-mini deployment (Managed Identity auth, no API key)
 //   - Container Apps Environment (consumption, scale-to-zero capable)
 //   - Container App (FastAPI service, min replicas 0)
 //   - Container Apps Job (scheduled daily update)
@@ -28,6 +29,13 @@ param backendImage string = 'mcr.microsoft.com/k8se/quickstart:latest'
 @secure()
 param githubModelsToken string = ''
 
+@description('LLM provider to use. "azure_openai" uses Managed Identity (no token rotation ever). "github" uses the PAT above (expires annually).')
+@allowed(['azure_openai', 'github', 'none'])
+param llmProvider string = 'azure_openai'
+
+@description('Azure region for Azure OpenAI. Separate from main location because Azure OpenAI is not available in all regions. swedencentral has the broadest model availability.')
+param openAiLocation string = 'swedencentral'
+
 @description('Tags applied to every resource.')
 param tags object = {
   app: 'iplodds'
@@ -45,6 +53,7 @@ var uniq = uniqueString(resourceGroup().id, namePrefix)
 var saName = toLower('${namePrefix}st${take(uniq, 6)}')
 var kvName = toLower('${namePrefix}-kv-${take(uniq, 6)}')
 var acrName = toLower('${namePrefix}acr${take(uniq, 6)}')
+var aoaiName = toLower('${namePrefix}-aoai-${take(uniq, 6)}')
 var laName = '${namePrefix}-log'
 var aiName = '${namePrefix}-appi'
 var miName = '${namePrefix}-mi'
@@ -197,6 +206,44 @@ resource acrPullRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   }
 }
 
+// ---------------- Azure OpenAI ----------------
+// Always provisioned so switching between providers requires only a parameter
+// change (azd env set LLM_PROVIDER <value> + azd provision) — no re-provisioning.
+// Managed Identity auth only (disableLocalAuth: true) — no API keys anywhere.
+resource aoai 'Microsoft.CognitiveServices/accounts@2024-10-01' = {
+  name: aoaiName
+  location: openAiLocation
+  tags: tags
+  kind: 'OpenAI'
+  sku: { name: 'S0' }
+  properties: {
+    customSubDomainName: aoaiName
+    publicNetworkAccess: 'Enabled'
+    disableLocalAuth: true
+  }
+}
+
+resource aoaiDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = {
+  parent: aoai
+  name: 'gpt-4o-mini'
+  sku: { name: 'GlobalStandard', capacity: 10 }
+  properties: {
+    model: { format: 'OpenAI', name: 'gpt-4o-mini', version: '2024-07-18' }
+    versionUpgradeOption: 'OnceCurrentVersionExpired'
+  }
+}
+
+// Cognitive Services OpenAI User → MI (call Azure OpenAI using Managed Identity, no API key)
+resource aoaiRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(aoai.id, mi.id, 'cognitive-services-openai-user')
+  scope: aoai
+  properties: {
+    principalId: mi.properties.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')
+  }
+}
+
 // ---------------- Container Apps Environment ----------------
 resource cae 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: caEnvName
@@ -275,8 +322,10 @@ resource ca 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'IPLODDS_LOG_LEVEL', value: 'INFO' }
             { name: 'IPLODDS_CORS_ORIGINS', value: join(allCorsOrigins, ',') }
             { name: 'IPLODDS_BLOB_ACCOUNT_URL', value: 'https://${sa.name}.blob.${environment().suffixes.storage}' }
-            { name: 'IPLODDS_LLM_PROVIDER', value: 'github' }
+            { name: 'IPLODDS_LLM_PROVIDER', value: llmProvider }
             { name: 'IPLODDS_GITHUB_MODELS_TOKEN', secretRef: 'github-models-token' }
+            { name: 'IPLODDS_AZURE_OPENAI_ENDPOINT', value: aoai.properties.endpoint }
+            { name: 'IPLODDS_AZURE_OPENAI_DEPLOYMENT', value: aoaiDeployment.name }
             { name: 'IPLODDS_CRICKETDATA_API_KEY', secretRef: 'cricketdata-api-key' }
             { name: 'AZURE_CLIENT_ID', value: mi.properties.clientId }
             { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appi.properties.ConnectionString }
@@ -351,8 +400,10 @@ resource job 'Microsoft.App/jobs@2024-03-01' = {
           env: [
             { name: 'IPLODDS_ENV', value: 'prod' }
             { name: 'IPLODDS_BLOB_ACCOUNT_URL', value: 'https://${sa.name}.blob.${environment().suffixes.storage}' }
-            { name: 'IPLODDS_LLM_PROVIDER', value: 'github' }
+            { name: 'IPLODDS_LLM_PROVIDER', value: llmProvider }
             { name: 'IPLODDS_GITHUB_MODELS_TOKEN', secretRef: 'github-models-token' }
+            { name: 'IPLODDS_AZURE_OPENAI_ENDPOINT', value: aoai.properties.endpoint }
+            { name: 'IPLODDS_AZURE_OPENAI_DEPLOYMENT', value: aoaiDeployment.name }
             { name: 'IPLODDS_CRICKETDATA_API_KEY', secretRef: 'cricketdata-api-key' }
             { name: 'AZURE_CLIENT_ID', value: mi.properties.clientId }
           ]
@@ -398,5 +449,7 @@ output appInsightsConnectionString string = appi.properties.ConnectionString
 output staticWebAppName string = swa.name
 output containerAppName string = ca.name
 output containerEnvName string = cae.name
+output azureOpenAiEndpoint string = aoai.properties.endpoint
+output activeLlmProvider string = llmProvider
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = acr.properties.loginServer
 output AZURE_CONTAINER_REGISTRY_NAME string = acr.name

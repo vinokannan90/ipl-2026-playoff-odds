@@ -5,6 +5,8 @@
     "namePrefix": { "value": "${AZURE_NAME_PREFIX=iplodds}" },
     "location":   { "value": "${AZURE_LOCATION=centralindia}" },
     "backendImage": { "value": "${SERVICE_API_IMAGE_NAME=mcr.microsoft.com/k8se/quickstart:latest}" },
-    "githubModelsToken": { "value": "${GITHUB_MODELS_TOKEN}" }
+    "githubModelsToken": { "value": "${GITHUB_MODELS_TOKEN}" },
+    "llmProvider": { "value": "${LLM_PROVIDER=azure_openai}" },
+    "openAiLocation": { "value": "${AZURE_OPENAI_LOCATION=swedencentral}" }
   }
 }
