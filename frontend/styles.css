@@ -293,7 +293,10 @@ footer a { color: var(--accent); }
   border-radius: 4px;
   font-size: 13px;
   color: var(--text);
+  text-decoration: none;
+  cursor: pointer;
 }
+.latest-result:hover { background: var(--border); }
 .latest-result strong { color: var(--accent); }
 
 /* Live match score badge */

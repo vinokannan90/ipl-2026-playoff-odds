@@ -16,6 +16,7 @@ from iplodds.agents import qa as qa_agent
 from iplodds.agents import scout as scout_agent
 from iplodds.config import Settings, get_settings
 from iplodds.data import iplt20_client
+from iplodds.data import cricketdata_client
 
 limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(prefix="/api")
@@ -120,6 +121,21 @@ async def live_score(request: Request) -> dict:  # noqa: ARG001
     # Most advanced match first (weekend dual-match edge case)
     live.sort(key=lambda x: x["oversPlayed"], reverse=True)
     return {"live": live}
+
+
+@router.get("/latest-result")
+@limiter.limit(lambda: get_settings().rate_limit_default)
+async def latest_result(request: Request) -> dict:  # noqa: ARG001
+    """Return the most recent IPL match result (or live status) from cricketdata.org.
+
+    Used by the frontend to display an authoritative "Latest: X beat Y" badge that
+    is independent of the iplt20.com schedule feed's field structure.
+    Cached for 5 minutes server-side; returns {"error": str} if unavailable.
+    """
+    s = get_settings()
+    if not s.cricketdata_api_key:
+        raise HTTPException(503, "cricketdata API key not configured")
+    return await cricketdata_client.get_latest_result()
 
 
 @router.get("/priors")

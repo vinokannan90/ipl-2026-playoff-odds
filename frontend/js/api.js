@@ -59,6 +59,10 @@ export async function getLive() {
   return fetchJSON("/api/live");
 }
 
+export async function getLatestResult() {
+  return fetchJSON("/api/latest-result");
+}
+
 export function backendConfigured() {
   return Boolean(API_BASE);
 }

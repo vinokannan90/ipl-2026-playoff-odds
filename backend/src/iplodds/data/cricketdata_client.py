@@ -7,6 +7,10 @@ Endpoints used:
   - GET /series_info?id=<series_id>               → full match list for the season
   - GET /currentMatches                           → currently live IPL matches
   - GET /match_scorecard?id=<match_id>            → full batting/bowling scorecard
+
+Public API:
+  - get_scorecard(match_hint)   → full batting/bowling scorecard for agents
+  - get_latest_result()         → lightweight winner/loser/status for the badge display
 """
 
 from __future__ import annotations
@@ -314,3 +318,131 @@ async def get_scorecard(match_hint: str | None = None) -> dict[str, Any]:
     except Exception as exc:
         log.exception("cricketdata.scorecard_fetch_failed", match_id=match_id)
         return {"error": f"Failed to fetch scorecard: {exc}"}
+
+
+# ---------------------------------------------------------------------------
+# Latest result — lightweight endpoint for the UI badge
+# ---------------------------------------------------------------------------
+
+# CricAPI returns full team names; map to the short codes used throughout the UI.
+# Both old and new RCB names are included (they rebranded Bangalore→Bengaluru in 2024).
+_TEAM_NAME_TO_CODE: dict[str, str] = {
+    "royal challengers bengaluru": "RCB",
+    "royal challengers bangalore": "RCB",
+    "mumbai indians": "MI",
+    "chennai super kings": "CSK",
+    "kolkata knight riders": "KKR",
+    "sunrisers hyderabad": "SRH",
+    "delhi capitals": "DC",
+    "punjab kings": "PBKS",
+    "rajasthan royals": "RR",
+    "gujarat titans": "GT",
+    "lucknow super giants": "LSG",
+}
+
+
+def _name_to_code(name: str) -> str:
+    """Convert a full IPL team name to its short code (e.g. 'Mumbai Indians' → 'MI')."""
+    return _TEAM_NAME_TO_CODE.get((name or "").strip().lower(), "")
+
+
+async def get_latest_result() -> dict[str, Any]:
+    """Return the most recent IPL match result or live status for the UI badge.
+
+    Tries currentMatches first (covers live games and very recently completed ones),
+    then falls back to the series match list + scorecard for the last completed game.
+
+    Returns:
+        {
+            "isLive": bool,
+            "status": str,          # e.g. "RCB won by 2 wickets" or "Match in progress"
+            "winnerCode": str | None,  # short code, e.g. "RCB"
+            "loserCode": str | None,   # short code, e.g. "MI"
+            "teams": list[str],        # short codes of both teams
+            "matchName": str,
+        }
+        On failure: {"error": str}
+    """
+    cache = _get_cache()
+    s = get_settings()
+
+    # Serve from cache (5-min TTL) to stay within the 100 req/day free-plan limit.
+    # A cache miss triggers at most 2 upstream calls (currentMatches + scorecard).
+    cached = await cache.get("cricapi:latest_result", 300)
+    if cached and "error" not in cached:
+        return cached  # type: ignore[return-value]
+
+    # --- 1. currentMatches: catches live games and very recently finished ones ---
+    try:
+        live_data = await _fetch("currentMatches", offset=0)
+        for m in live_data.get("data") or []:
+            name = m.get("name") or ""
+            teams_raw: list[str] = m.get("teams") or []
+            combined = name + " " + " ".join(teams_raw)
+            if not any(kw.lower() in combined.lower() for kw in _IPL_KEYWORDS):
+                continue
+
+            status = m.get("status") or ""
+            winner_raw = m.get("matchWinner") or ""
+            winner_code = _name_to_code(winner_raw)
+            teams_coded = [_name_to_code(t) or t for t in teams_raw]
+            loser_code = (
+                next((t for t in teams_coded if t != winner_code), None) if winner_code else None
+            )
+            result: dict[str, Any] = {
+                "isLive": not bool(winner_code),
+                "status": status,
+                "winnerCode": winner_code or None,
+                "loserCode": loser_code,
+                "teams": teams_coded,
+                "matchName": name,
+            }
+            log.info(
+                "cricketdata.latest_result.from_currentMatches",
+                match=name,
+                winner=winner_code,
+                is_live=result["isLive"],
+            )
+            await cache.set("cricapi:latest_result", result)
+            return result
+    except Exception:
+        log.warning("cricketdata.latest_result.currentMatches_failed")
+
+    # --- 2. Series match list + scorecard for the last completed game ---
+    try:
+        matches = await get_series_matches()
+        now = datetime.now(tz=datetime.UTC)
+        past = sorted(
+            [m for m in matches if _parse_dt(m) <= now],
+            key=_parse_dt,
+            reverse=True,
+        )
+        if not past:
+            return {"error": "No completed IPL 2026 matches found yet."}
+
+        scorecard = await _fetch_scorecard_by_id(past[0]["id"], is_live=False)
+        winner_raw = scorecard.get("matchWinner") or ""
+        winner_code = _name_to_code(winner_raw)
+        teams_raw = scorecard.get("teams") or []
+        teams_coded = [_name_to_code(t) or t for t in teams_raw]
+        loser_code = (
+            next((t for t in teams_coded if t != winner_code), None) if winner_code else None
+        )
+        result = {
+            "isLive": False,
+            "status": scorecard.get("status") or "",
+            "winnerCode": winner_code or None,
+            "loserCode": loser_code,
+            "teams": teams_coded,
+            "matchName": scorecard.get("matchName") or "",
+        }
+        log.info(
+            "cricketdata.latest_result.from_scorecard",
+            match=result["matchName"],
+            winner=winner_code,
+        )
+        await cache.set("cricapi:latest_result", result)
+        return result
+    except Exception as exc:
+        log.exception("cricketdata.latest_result.series_fallback_failed")
+        return {"error": f"Could not determine latest match result: {exc}"}

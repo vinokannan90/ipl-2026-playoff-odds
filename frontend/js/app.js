@@ -144,7 +144,9 @@ function hydrate(standingsRaw, scheduleRaw, source) {
       const label = lc.winnerCode && loserCode
         ? `${lc.winnerCode} beat ${loserCode} · ${margin}`
         : lc.resultText;
-      badgeHtml = `<span class="latest-result">Latest: <strong>${escapeHtml(label)}</strong></span>`;
+      const q = encodeURIComponent(`${lc.homeCode} vs ${lc.awayCode} IPL 2026 scorecard`);
+      const searchUrl = `https://www.google.com/search?q=${q}`;
+      badgeHtml = `<a class="latest-result" href="${searchUrl}" target="_blank" rel="noopener noreferrer">Latest: <strong>${escapeHtml(label)}</strong></a>`;
     }
     STATE.latestBadgeHtml = badgeHtml;
     summaryEl.innerHTML =
@@ -153,14 +155,50 @@ function hydrate(standingsRaw, scheduleRaw, source) {
       `Last updated <span class="small">${refreshed}</span>` +
       ` · <span id="liveOrLatest">${badgeHtml}</span>` +
       (source === "cache" ? ` <span class="small">· from cache</span>` : "");
-    // Non-blocking live check — replaces badge if a match is in progress
-    if (api.backendConfigured()) checkLive().catch(() => {});
+    // Non-blocking live check — replaces badge if a match is in progress.
+    // Also fetch authoritative result from cricketdata.org backend in parallel.
+    if (api.backendConfigured()) {
+      checkLatestResult().catch(() => {});
+      checkLive().catch(() => {});
+    }
   }
 }
 
 // ---- Live score helpers ----
 
 let livePoller = null;
+
+/**
+ * Fetch the authoritative latest match result from cricketdata.org (via backend).
+ * Updates STATE.latestBadgeHtml so that checkLive()'s "restore" path shows the
+ * correct result when a live match ends, rather than relying on the iplt20.com
+ * schedule feed which can have field-ordering issues around home/away vs batting order.
+ */
+async function checkLatestResult() {
+  try {
+    const data = await api.getLatestResult();
+    // If there's an error or a live match is in progress, skip — checkLive() handles live.
+    if (!data || data.error || data.isLive) return;
+    if (!data.winnerCode || !data.loserCode) return;
+
+    // Parse the margin from the status string: "RCB won by 2 wickets" → "Won by 2 wickets"
+    const status = data.status || "";
+    const wonIdx = status.toLowerCase().indexOf(" won ");
+    const margin = wonIdx !== -1 ? status.slice(wonIdx + 1) : status;
+    const label = `${escapeHtml(data.winnerCode)} beat ${escapeHtml(data.loserCode)} · ${escapeHtml(margin)}`;
+    const q = encodeURIComponent(`${data.winnerCode} vs ${data.loserCode} IPL 2026 scorecard`);
+    const searchUrl = `https://www.google.com/search?q=${q}`;
+    const badgeHtml = `<a class="latest-result" href="${searchUrl}" target="_blank" rel="noopener noreferrer">Latest: <strong>${label}</strong></a>`;
+
+    // Persist so checkLive()'s restore path uses the authoritative badge.
+    STATE.latestBadgeHtml = badgeHtml;
+    const badge = document.getElementById("liveOrLatest");
+    // Only update the DOM if checkLive hasn't already taken over with a live score.
+    if (badge && !badge.querySelector(".live-score")) {
+      badge.innerHTML = badgeHtml;
+    }
+  } catch (_) { /* non-fatal; schedule-derived badge remains */ }
+}
 
 function buildLiveScoreHtml(m) {
   const innings = m.innings || [];
@@ -184,7 +222,8 @@ function buildLiveScoreHtml(m) {
     scoreText = parts.join(" | ");
     if (m.chasingText) scoreText += ` | ${escapeHtml(m.chasingText)}`;
   }
-  const url = `https://www.iplt20.com/match/2026/${encodeURIComponent(m.matchId)}`;
+  const q = encodeURIComponent(`${m.homeCode} vs ${m.awayCode} IPL 2026 live score`);
+  const url = `https://www.google.com/search?q=${q}`;
   return `<a class="live-score" href="${url}" target="_blank" rel="noopener noreferrer">Live: <strong>${scoreText}</strong></a>`;
 }
 

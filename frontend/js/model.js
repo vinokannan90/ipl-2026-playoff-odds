@@ -49,8 +49,13 @@ export function buildScheduleModel(rawSchedule, byId) {
       // Track the most recently played match for display
       const sk = parseMatchDate(m.MatchDate);
       if (!latestCompleted || sk > latestCompleted.sortKey) {
-        const homeCode = m.HomeTeamCode || m.FirstBattingTeamCode || byId[homeId]?.code || "?";
-        const awayCode = m.AwayTeamCode || m.SecondBattingTeamCode || byId[awayId]?.code || "?";
+        // IMPORTANT: never mix HomeTeamCode with FirstBattingTeamCode.
+        // homeId derives from HomeTeamID (venue/schedule assignment, pre-toss).
+        // FirstBattingTeamCode is determined by the toss and may be the *away* team.
+        // Mixing them causes winnerCode to resolve to the wrong team when the
+        // away side wins the toss and bats first.
+        const homeCode = m.HomeTeamCode || byId[homeId]?.code || "?";
+        const awayCode = m.AwayTeamCode || byId[awayId]?.code || "?";
         const winnerCode = winnerId
           ? (winnerId === homeId ? homeCode : awayCode)
           : null;
